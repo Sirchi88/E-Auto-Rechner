@@ -32,7 +32,7 @@ export default {
             h('p', { class: 'hint big-hint' }, '20, 19, 18, 17 und Bull – ', h('strong', {}, 'alle Stationen geschafft.'))),
           h('div', { class: 'controls' },
             h('button', { class: 'btn huge primary', onClick: () => ctx.finish({ completed: true }) }, 'Weiter'),
-            h('button', { class: 'btn ghost', onClick: () => { i = STATIONS.length - 1; render(); } }, 'Zurück'))));
+            h('button', { class: 'btn ghost small', onClick: () => { i = STATIONS.length - 1; render(); } }, 'Zurück'))));
         return;
       }
       const cur = STATIONS[i];
@@ -48,7 +48,7 @@ export default {
           h('p', { class: 'hint big-hint' }, cur === 'Bull' ? 'auf Bull (Single-Bull oder Bullseye)' : `auf die ${cur} – Single, Doppel oder Triple`)),
         h('div', { class: 'controls' },
           h('button', { class: 'btn huge primary', 'data-snd': 'none', onClick: advance }, next ? `Weiter zur ${next}` : 'Abschluss'),
-          i > 0 ? h('button', { class: 'btn ghost small', onClick: () => { i--; render(); } }, 'Zurück') : null)));
+          h('button', { class: 'btn ghost small', style: { visibility: i > 0 ? 'visible' : 'hidden' }, onClick: () => { i--; render(); } }, 'Zurück'))));
     };
     const advance = () => {
       sound.play(i === STATIONS.length - 1 ? 'finish' : 'hit');

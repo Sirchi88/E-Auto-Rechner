@@ -45,7 +45,10 @@ export default {
         seqView.replaceChildren(...(seq.length ? seq.map(d => h('span', { class: 'pill' }, d)) : [h('span', { class: 'muted' }, 'Doppel antippen …')]));
         board.highlight(seq.map(keyOf), 'steady');
         presetRow.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', i < DOUBLE_PRESETS.length && same(seq, DOUBLE_PRESETS[i])));
+        historyRow.querySelectorAll('button').forEach((b, i) => b.classList.toggle('on', same(seq, hist[i])));
       };
+      const hist = store.settings.dblHistory;
+      const historyRow = h('div', { class: 'chip-row' }, hist.map(p => h('button', { class: 'chip-btn', onClick: () => { seq = [...p]; customGrid.hidden = true; paintSeq(); } }, p.join(' · '))));
       const presetRow = h('div', { class: 'chip-row' },
         DOUBLE_PRESETS.map(p => h('button', { class: 'chip-btn', onClick: () => { seq = [...p]; customGrid.hidden = true; paintSeq(); } }, p.join(' · '))),
         h('button', { class: 'chip-btn', onClick: () => { customGrid.hidden = !customGrid.hidden; if (!customGrid.hidden) { seq = []; paintSeq(); } } }, 'Eigene Reihenfolge'));
@@ -56,11 +59,12 @@ export default {
       root.replaceChildren(h('div', { class: 'game' },
         h('div', { class: 'scroll stack', style: { paddingTop: '8px' } },
           h('div', { class: 'board-wrap small' }, board.el),
-          h('div', { class: 'card' }, h('h3', {}, 'Reihenfolge'), seqView, presetRow, customGrid),
+          h('div', { class: 'card' }, h('h3', {}, 'Reihenfolge'), seqView, presetRow, customGrid,
+            hist.length ? h('div', { class: 'label', style: { margin: '14px 0 6px' } }, 'Bereits gespielt') : null, historyRow),
           h('div', { class: 'card' }, h('h3', {}, 'Spielen nach'),
             h('div', { class: 'field' }, h('div', { class: 'f-label' }, 'Modus'), segmented([['time', 'Zeit'], ['hits', 'Treffer']], mode, v => { mode = v; setup(); })),
             mode === 'time'
-              ? h('div', { class: 'field' }, h('div', { class: 'f-label' }, 'Dauer'), segmented([[3, '3'], [5, '5'], [7, '7 Min']], minutes, v => { minutes = v; }))
+              ? h('div', { class: 'field' }, h('div', { class: 'f-label' }, 'Dauer'), segmented([[3, '3 Min'], [5, '5 Min'], [7, '7 Min']], minutes, v => { minutes = v; }))
               : h('div', { class: 'field' }, h('div', { class: 'f-label' }, 'Treffer-Ziel'), stepper(target, { min: 1, max: 200 }, v => { target = v; })))),
         h('div', { class: 'controls' }, h('button', { class: 'btn huge primary', 'data-snd': 'none', onClick: start }, 'Start'))));
       paintSeq();
@@ -68,7 +72,9 @@ export default {
 
     function start() {
       if (!seq.length) seq = [...DOUBLE_PRESETS[0]];
-      store.saveSettings({ ...store.settings, dblCustom: seq });
+      const isPreset = DOUBLE_PRESETS.some(p => same(p, seq));
+      const dblHistory = isPreset ? store.settings.dblHistory : [seq, ...store.settings.dblHistory.filter(p => !same(p, seq))].slice(0, 6);
+      store.saveSettings({ ...store.settings, dblCustom: seq, dblHistory });
       sound.play('start');
       phase = 'play'; hits = 0; startedAt = Date.now();
       const count = h('div', { class: 'big' }, '0');
@@ -88,7 +94,7 @@ export default {
           h('div', { class: 'board-wrap small' }, board.el),
           count),
         h('div', { class: 'controls' },
-          h('button', { class: 'btn huge check xl', 'data-snd': 'none', onClick: check }, 'Check'),
+          h('button', { class: 'btn huge check xl stacked', 'data-snd': 'none', onClick: check }, 'Check', h('small', { class: 'btn-sub' }, 'jeder Treffer auf ein Doppel')),
           h('div', { class: 'btn-row' }, undoBtn, h('button', { class: 'btn ghost small', onClick: () => finish() }, 'Beenden')))));
       function check() {
         if (phase !== 'play') return;
@@ -123,8 +129,8 @@ export default {
             h('div', { class: 'stat' }, h('b', {}, best), h('span', {}, 'Bestwert/Min')))),
         h('div', { class: 'controls' },
           h('div', { class: 'btn-row' },
-            h('button', { class: 'btn huge primary', onClick: () => ctx.finish({ hits, perMin, durationMs, seq }) }, 'Weiter'),
-            h('button', { class: 'btn huge ghost', onClick: setup }, 'Nochmal')))));
+            h('button', { class: 'btn huge ghost', onClick: setup }, 'Nochmal'),
+            h('button', { class: 'btn huge primary', onClick: () => ctx.finish({ hits, perMin, durationMs, seq }) }, 'Weiter')))));
     }
 
     ctx.onKey(e => {

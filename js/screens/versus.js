@@ -1,12 +1,13 @@
 // 1vs1 auf einem Gerät: Namen, zufällige Charaktere, Duelle (ATC, 121, Random Checkouts).
-import { h, icon, iconBtn, pick, shuffle, confirmDialog, toggleSwitch } from '../ui.js';
+import { h, icon, iconBtn, pick, shuffle, confirmDialog, toggleSwitch, gameTile, ICONS } from '../ui.js';
 import { sound } from '../sound.js';
 import { store, uid } from '../store.js';
 import { createBoard, pathKeys } from '../board.js';
 import { atcTargets, ATC_VARIANTS } from '../games/atc.js';
-import { create121, VARIANTS_121 } from '../games/l121.js';
+import { create121, VARIANTS_121, buttons121, lifeHearts, sound121 } from '../games/l121.js';
 import { checkoutPath, checkablePool } from '../checkouts.js';
 import { showInfo } from '../info.js';
+import { checkBadges } from '../badges.js';
 
 // Gemüse-Alter-Egos frei nach bekannten Dartprofis
 export const CHARACTERS = [
@@ -33,14 +34,16 @@ export const CHARACTERS = [
 ];
 
 const DUELS = [
-  ...Object.entries(ATC_VARIANTS).map(([v, V]) => ({ id: `atc${v}`, name: `Around the Clock ${V.label}`, desc: `Wettrennen ${V.show(1)}–${V.show(20)} + Bull. Pro Aufnahme 3 Darts, jeden Dart quittieren.`, kind: 'atc', v })),
-  ...Object.entries(VARIANTS_121).map(([v, V]) => ({ id: `l121${v}`, name: `121 ${V.label}`, desc: `${V.desc} Abwechselnd je eine Zahl (max. 9 Darts). Höchste Zahl gewinnt.`, kind: 'l121', v })),
-  { id: 'co', name: 'Random Checkouts', desc: 'Beide bekommen dieselbe Zahl, je 3 Darts. Wer zuerst X Checks hat, gewinnt.', kind: 'co' },
+  ...Object.entries(ATC_VARIANTS).map(([v, V]) => ({ id: `atc${v}`, glyph: v === 'S' ? '1→20' : v, name: `ATC ${V.label}`, desc: `Wer ist zuerst durch? ${V.show(1)}–${V.show(20)} + Bull.`, kind: 'atc', v })),
+  { id: 'l121classic', glyph: '121', name: '121 Klassisch', desc: 'Höchste Zahl gewinnt.', kind: 'l121', v: 'classic' },
+  { id: 'l121leek', glyph: '🔒', name: '121 Leek', desc: 'Mit Einloggen nach 3 Darts.', kind: 'l121', v: 'leek' },
+  { id: 'l121grob', glyph: '💚', name: '121 GROB Boys', desc: 'Mit Leben sammeln.', kind: 'l121', v: 'grob' },
+  { id: 'co', glyph: '✓', name: 'Random Checkouts', desc: 'Gleiche Zahl – wer zuerst X Checks hat.', kind: 'co' },
 ];
 
 const DUEL_INFO = {
   atc: { lines: ['Beide spielen Around the Clock – wer zuerst durch ist (inkl. Bull), gewinnt.', 'Pro Aufnahme 3 Darts, jeden Dart mit Treffer/Fehlwurf quittieren. Danach wechselt die App automatisch.'], steps: [{ hl: ['S1'], cap: 'Spieler 1: Feld 1', darts: [['S1', true]] }, { hl: ['S3'], cap: 'Spieler 2: schon bei 3!', darts: [['S3', true]] }] },
-  l121: { lines: ['Jeder hat seine eigene 121-Leiter.', 'Abwechselnd versucht jeder seine aktuelle Zahl (max. 9 Darts = 3 Aufnahmen).', '„Reicht für heute“ beendet das Duell – die höchste gecheckte Zahl gewinnt.'], steps: [{ hl: pathKeys('T20 T11 D14'), cap: '121 = T20 · T11 · D14', darts: [['T20', true], ['T11', true], ['D14', true]] }] },
+  l121: { lines: ['Jeder hat seine eigene 121-Leiter.', 'Abwechselnd versucht jeder seine aktuelle Zahl (max. 9 Darts = 3 Aufnahmen).', 'Nach jedem Versuch: mit 3, 6 oder 9 Darts geschafft – oder nicht. „Fertig“ beendet das Duell, die höchste gecheckte Zahl gewinnt.'], steps: [{ hl: pathKeys('T20 T11 D14'), cap: '121 = T20 · T11 · D14', darts: [['T20', true], ['T11', true], ['D14', true]] }] },
   co: { lines: ['Pro Runde bekommen beide dieselbe Restzahl.', 'Jeder hat 3 Darts: Check oder Fail.', 'Wer zuerst die eingestellte Anzahl Checks hat, gewinnt (bei Gleichstand geht es weiter).'], steps: [{ hl: pathKeys('T19 D12'), cap: '81 – beide sind dran', darts: [['T19', true], ['D12', true]] }] },
 };
 
@@ -53,21 +56,26 @@ export function versusFlow(app) {
     const [n1, n2] = store.settings.vsNames;
     const i1 = h('input', { class: 'text-input', placeholder: 'Spieler 1', value: n1, maxlength: 20, autocomplete: 'off' });
     const i2 = h('input', { class: 'text-input', placeholder: 'Spieler 2', value: n2, maxlength: 20, autocomplete: 'off' });
+    let withChars = store.settings.vsCharacters;
     const go = () => {
       const a = i1.value.trim() || 'Spieler 1', b = i2.value.trim() || 'Spieler 2';
-      store.saveSettings({ ...store.settings, vsNames: [i1.value.trim(), i2.value.trim()] });
+      store.saveSettings({ ...store.settings, vsNames: [i1.value.trim(), i2.value.trim()], vsCharacters: withChars });
       const [c1, c2] = shuffle(CHARACTERS);
-      players = [{ name: a, ch: c1 }, { name: b, ch: c2 }];
-      reveal();
+      players = [{ name: a, ch: withChars ? c1 : null }, { name: b, ch: withChars ? c2 : null }];
+      withChars ? reveal() : choose();
     };
+    const goBtn = h('button', { class: 'btn huge primary', 'data-snd': 'start', onClick: go }, withChars ? 'Charaktere auslosen' : 'Weiter zur Spielwahl');
     app.show(h('section', { class: 'screen' },
       h('div', { class: 'topbar' }, iconBtn('back', 'Zurück', app.home), h('h2', {}, '1vs1', h('span', { class: 'sub' }, 'Duell auf einem Gerät'))),
       h('div', { class: 'scroll stack' },
         h('img', { class: 'duel-img', src: 'icons/duel.webp', alt: 'Zwei Maskottchen schauen sich böse an' }),
         h('div', { class: 'card stack' },
           h('label', { class: 'label' }, 'Spieler 1'), i1,
-          h('label', { class: 'label' }, 'Spieler 2'), i2)),
-      h('div', { class: 'controls' }, h('button', { class: 'btn huge primary', 'data-snd': 'start', onClick: go }, 'Charaktere auslosen'))),
+          h('label', { class: 'label' }, 'Spieler 2'), i2),
+        h('div', { class: 'card' }, h('div', { class: 'field' },
+          h('div', { class: 'f-label' }, 'Mit lustigen Charakteren', h('small', {}, 'Zufälliges Gemüse-Alter-Ego für jeden')),
+          toggleSwitch(withChars, v => { withChars = v; goBtn.textContent = v ? 'Charaktere auslosen' : 'Weiter zur Spielwahl'; }, 'Mit Charakteren')))),
+      h('div', { class: 'controls' }, goBtn)),
     { back: app.home });
   }
 
@@ -94,16 +102,15 @@ export function versusFlow(app) {
   // ---------- Spielwahl ----------
   function choose() {
     app.show(h('section', { class: 'screen' },
-      h('div', { class: 'topbar' }, iconBtn('back', 'Zurück', reveal), h('h2', {}, 'Duell wählen', h('span', { class: 'sub' }, `${players[0].name} vs. ${players[1].name}`))),
-      h('div', { class: 'scroll' }, h('div', { class: 'pick-list' }, DUELS.map(d =>
-        h('button', { class: 'pick', onClick: () => startDuel(d) },
-          h('span', { class: 'num' }, d.kind === 'atc' ? '◎' : d.kind === 'l121' ? '121' : '✓'),
-          h('span', { class: 'txt' }, h('b', {}, d.name), h('span', {}, d.kind === 'co' ? d.desc.replace('X', store.settings.vsChecks) : d.desc))))))),
-    { back: reveal });
+      h('div', { class: 'topbar' }, iconBtn('back', 'Zurück', players[0].ch ? reveal : names), h('h2', {}, 'Duell wählen', h('span', { class: 'sub' }, `${players[0].name} vs. ${players[1].name}`))),
+      h('div', { class: 'scroll' }, h('div', { class: 'tile-grid' }, DUELS.map(d => gameTile({
+        glyph: d.glyph, title: d.name, desc: d.kind === 'co' ? d.desc.replace('X', store.settings.vsChecks) : d.desc, onClick: () => startDuel(d),
+      }))))),
+    { back: players[0].ch ? reveal : names });
   }
 
   // ---------- Gemeinsamer Rahmen ----------
-  function frame(duel, body, { scores, active }) {
+  function frame(duel, body, { scores, active, under = null }) {
     const exit = async () => {
       if (await confirmDialog({ title: 'Duell abbrechen?', text: 'Das Duell wird nicht gewertet.', ok: 'Abbrechen', cancel: 'Weiterspielen', danger: true })) choose();
     };
@@ -115,9 +122,13 @@ export function versusFlow(app) {
           iconBtn('close', 'Duell verlassen', exit)),
         h('div', { class: 'vs-bar' }, players.map((p, i) =>
           h('div', { class: `vs-chip${i === active ? ' active' : ''}` },
-            h('span', { class: 'e' }, p.ch.emoji),
-            h('span', { class: 'n' }, h('b', {}, p.name), h('small', {}, p.ch.name)),
+            p.ch ? h('span', { class: 'e' }, p.ch.emoji) : null,
+            h('span', { class: 'n' }, h('b', {}, p.name), p.ch ? h('small', {}, p.ch.name) : null),
             h('span', { class: 's' }, scores[i])))),
+        h('div', { class: 'turn-banner' },
+          h('div', { class: 'tb-label' }, 'Am Wurf'),
+          h('div', { class: 'tb-name' }, players[active].ch ? `${players[active].ch.emoji} ` : '', players[active].name),
+          under),
         body),
       exit,
     };
@@ -133,13 +144,14 @@ export function versusFlow(app) {
     const draw = winner == null;
     store.log('versusMatches', { id: uid(), date: Date.now(), duel: duel.id, players: players.map(p => p.name), winner: draw ? null : players[winner].name, detail });
     sound.play('record');
+    setTimeout(checkBadges, 1200);
     starter = 1 - starter;
     app.show(h('section', { class: 'screen' },
       h('div', { class: 'stage' },
-        draw ? h('div', { class: 'char-emoji big-emoji' }, '🤝') : h('div', { class: 'char-emoji big-emoji win' }, players[winner].ch.emoji),
+        h('div', { class: `char-emoji big-emoji${draw ? '' : ' win'}` }, draw ? '🤝' : players[winner].ch?.emoji ?? '🏆'),
         h('div', { class: 'label' }, duel.name),
         h('div', { class: 'win-title' }, draw ? 'Unentschieden!' : `${players[winner].name} gewinnt!`),
-        draw ? null : h('div', { class: 'char-name' }, `„${players[winner].ch.name}“`),
+        draw || !players[winner].ch ? null : h('div', { class: 'char-name' }, `„${players[winner].ch.name}“`),
         h('p', { class: 'hint' }, detail)),
       h('div', { class: 'controls' },
         h('button', { class: 'btn huge primary', 'data-snd': 'start', onClick: () => startDuel(duel) }, 'Revanche'),
@@ -161,7 +173,7 @@ export function versusFlow(app) {
       board.highlight([t.key], 'blink');
       const f = frame(duel, h('div', { class: 'game' },
         h('div', { class: 'stage' },
-          h('div', { class: 'label' }, `${players[p].name} · Dart ${st.dart + 1}/3`),
+          h('div', { class: 'label' }, `Dart ${st.dart + 1} von 3`),
           h('div', { class: 'big medium' }, t.label),
           h('div', { class: 'board-wrap small' }, board.el)),
         h('div', { class: 'controls' },
@@ -188,39 +200,38 @@ export function versusFlow(app) {
 
   // ---------- 121-Duell ----------
   function duel121(duel) {
-    let games = [create121(duel.v), create121(duel.v)];
+    const games = [create121(duel.v), create121(duel.v)];
     let cur = starter, msg = '';
     const hist = [];
     const render = () => {
       const g = games[cur].st;
+      const under = duel.v === 'grob' ? h('div', { class: 'tb-lives' }, lifeHearts(g.lives), h('em', {}, `${g.lives} Leben`))
+        : duel.v === 'leek' ? h('div', { class: 'tb-lives lock' }, `🔒 eingeloggt: ${g.base}`) : null;
       const f = frame(duel, h('div', { class: 'game' },
-        h('div', { class: 'stage' },
-          h('div', { class: 'label' }, `${players[cur].name} checkt`),
-          h('div', { class: 'big' }, g.n),
+        h('div', { class: 'stage s121' },
+          h('div', { class: 'label' }, 'Checke'),
+          h('div', { class: 'big n121' }, g.n),
           h('div', { class: 'path' }, checkoutPath(g.n)),
-          h('div', { class: 'visits' }, [0, 1, 2].map(v => h('span', { class: v < g.visit ? 'used' : v === g.visit ? 'cur' : '' }, `Darts ${v * 3 + 1}–${v * 3 + 3}`))),
-          duel.v !== 'classic' ? h('div', { class: 'chip-row center' }, games.map((x, i) => h('span', { class: 'pill' }, `${players[i].name}: ${duel.v === 'grob' ? `❤ ${x.st.lives}` : `🔒 ${x.st.base}`}`))) : null,
-          msg ? h('div', { class: 'flash' }, msg) : null),
+          h('div', { class: `flash ${msg ? '' : 'empty'}` }, msg || '\u00a0')),
         h('div', { class: 'controls' },
-          h('div', { class: 'btn-row' },
-            h('button', { class: 'btn huge fail stacked', 'data-snd': 'none', onClick: () => visit(false) }, 'Nicht gecheckt', h('small', { class: 'btn-sub' }, 'Aufnahme vorbei')),
-            h('button', { class: 'btn huge check', 'data-snd': 'none', onClick: () => visit(true) }, 'Gecheckt')),
+          buttons121(duel.v, attempt),
           h('div', { class: 'btn-row' },
             h('button', { class: 'btn ghost small', disabled: !hist.length, onClick: undo }, icon('undo'), 'Undo'),
-            h('button', { class: 'btn ghost small', onClick: end }, 'Reicht für heute')))),
-      { scores: games.map(x => x.st.highest || '–'), active: cur });
+            h('button', { class: 'btn ghost small', onClick: end }, 'Fertig')))),
+      { scores: games.map(x => x.st.highest || '–'), active: cur, under });
       app.show(f.el, { back: f.exit });
-      app.setKey(e => { if (e.key === 'Enter') { e.preventDefault(); visit(true); } else if (e.key === ' ') { e.preventDefault(); visit(false); } else if (e.key === 'Backspace') { e.preventDefault(); undo(); } });
+      app.setKey(e => { const map = { 1: 3, 2: 6, 3: 9, 0: 0, ' ': 0 }; if (e.key in map) { e.preventDefault(); attempt(map[e.key]); } else if (e.key === 'Backspace') { e.preventDefault(); undo(); } });
     };
-    const visit = ok => {
-      hist.push({ cur, snap: games.map(g => g.st.history.length) });
-      const ev = games[cur].visit(ok);
-      msg = ev.locked ? `🔒 ${players[cur].name} loggt ${ev.locked} ein` : ev.lives ? `+${ev.lives} Leben für ${players[cur].name}` : ev.lifeLost ? `${players[cur].name}: −1 Leben` : ev.fallback ? `${players[cur].name} fällt zurück auf ${ev.fallback}` : '';
-      sound.play(ev.locked ? 'lock' : ev.lives ? 'lifeGain' : ok ? 'hit' : (ev.lifeLost || ev.fallback) ? 'lifeLost' : 'miss');
-      if (ev.turnEnd) cur = 1 - cur;
+    const attempt = darts => {
+      hist.push(cur);
+      const ev = games[cur].attempt(darts);
+      sound121(ev);
+      const n = players[cur].name;
+      msg = ev.locked ? `🔒 ${n} loggt ${ev.locked} ein` : ev.lives ? `+${ev.lives} Leben für ${n} 💚` : ev.lifeLost ? `${n}: −1 Leben` : ev.fallback ? `${n} fällt zurück auf ${ev.fallback}` : `${n} checkt!`;
+      cur = 1 - cur;
       render();
     };
-    const undo = () => { const x = hist.pop(); if (!x) return; cur = x.cur; for (const g of games) while (g.st.history.length > x.snap[games.indexOf(g)]) g.undo(); msg = ''; render(); };
+    const undo = () => { const c = hist.pop(); if (c == null) return; games[c].undo(); cur = c; msg = ''; render(); };
     const end = () => {
       const [a, b] = games.map(g => g.st.highest);
       winnerScreen(duel, a === b ? null : a > b ? 0 : 1, `Höchste Zahl: ${players[0].name} ${a || '–'} · ${players[1].name} ${b || '–'}`);
@@ -239,7 +250,7 @@ export function versusFlow(app) {
       const pathToggle = toggleSwitch(showPath, v => { showPath = v; render(); }, 'Checkout-Weg');
       const f = frame(duel, h('div', { class: 'game' },
         h('div', { class: 'stage' },
-          h('div', { class: 'label' }, `${players[st.cur].name} · 3 Darts`),
+          h('div', { class: 'label' }, 'Rest · 3 Darts'),
           h('div', { class: 'big' }, st.n),
           h('div', { class: `path${showPath ? '' : ' off'}` }, checkoutPath(st.n)),
           h('div', { class: 'attempt-counter' }, `Erster zu ${goal} Checks · Versuche ${st.att[0]} : ${st.att[1]}`)),

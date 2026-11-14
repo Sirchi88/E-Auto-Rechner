@@ -102,8 +102,8 @@ function atcGame({ id, v, limitKey }) {
                    : h('div', { class: 'ok-badge' }, 'Im grünen Bereich ✓')),
             h('div', { class: 'controls' },
               h('div', { class: 'btn-row' },
-                h('button', { class: `btn huge ${over ? 'ghost' : 'primary'}`, onClick: leave }, 'Weiter'),
-                h('button', { class: `btn huge ${over ? 'fail' : 'ghost'}`, 'data-snd': 'start', onClick: () => { store.log('atcRuns', { id: uid(), date: Date.now(), game: id, mode, misses, limit, repeated: true }); start(); } }, 'Nochmal')),
+                h('button', { class: `btn huge ${over ? 'fail' : 'ghost'}`, 'data-snd': 'start', onClick: () => { store.log('atcRuns', { id: uid(), date: Date.now(), game: id, mode, misses, limit, repeated: true }); start(); } }, 'Nochmal'),
+                h('button', { class: `btn huge ${over ? 'ghost' : 'primary'}`, onClick: leave }, 'Weiter')),
               h('button', { class: 'btn ghost small', onClick: undo }, icon('undo'), 'Letzte Eingabe rückgängig'))));
           return;
         }
@@ -132,7 +132,7 @@ function atcGame({ id, v, limitKey }) {
               h('div', {}, h('div', { class: 'label' }, `Feld ${idx + 1}/${targets.length}`), h('div', { class: 'big medium' }, t.label)),
               h('div', { class: `stat${misses > limit ? ' red' : ''}` }, h('b', {}, misses), h('span', {}, `Fehl · max ${limit}`))),
             h('div', { class: 'board-wrap' }, board.el),
-            t.key === 'BULL' ? h('p', { class: 'hint' }, 'Bull ', h('strong', {}, 'oder'), ' Bullseye – eins reicht') : null),
+            h('p', { class: 'hint', style: { visibility: t.key === 'BULL' ? 'visible' : 'hidden' } }, 'Bull ', h('strong', {}, 'oder'), ' Bullseye – eins reicht')),
           h('div', { class: 'controls' },
             h('div', { class: 'btn-row' },
               h('button', { class: 'btn huge fail', 'data-snd': 'none', onClick: miss }, 'Fehlwurf'),

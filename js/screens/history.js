@@ -5,6 +5,8 @@ import { gameById } from '../games/registry.js';
 import { lineChart } from '../chart.js';
 import { DIFFICULTIES } from '../games/survival.js';
 import { VARIANTS_121 } from '../games/l121.js';
+import { heatmap, streak, bestStreak } from '../calendar.js';
+import { badgeGrid, BADGES } from '../badges.js';
 
 const shortDate = ts => new Date(ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
 
@@ -105,5 +107,19 @@ export function renderHistory({ onBack }) {
 
   return h('section', { class: 'screen' },
     h('div', { class: 'topbar' }, iconBtn('back', 'Zurück', onBack), h('h2', {}, 'Statistik')),
-    h('div', { class: 'scroll' }, coCard, weakCard, atcCard, svCard, misc, sessCard));
+    h('div', { class: 'scroll' }, calCard(), coCard, weakCard, atcCard, svCard, misc, badgeCard(), sessCard));
+}
+
+function calCard() {
+  const st = streak();
+  return h('div', { class: 'card' }, h('h3', {}, 'Trainings-Kalender'),
+    h('div', { class: 'statline', style: { marginBottom: '12px' } },
+      h('div', { class: 'stat green' }, h('b', {}, `🔥 ${st.days}`), h('span', {}, 'Aktuelle Serie')),
+      h('div', { class: 'stat' }, h('b', {}, bestStreak()), h('span', {}, 'Beste Serie'))),
+    heatmap());
+}
+
+function badgeCard() {
+  const n = Object.keys(store.badges).length;
+  return h('div', { class: 'card' }, h('h3', {}, `Leek-Abzeichen · ${n}/${BADGES.length}`), badgeGrid());
 }

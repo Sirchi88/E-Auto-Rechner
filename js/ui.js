@@ -32,6 +32,7 @@ export const ICONS = {
   sliders: svg('<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>'),
   dart: svg('<path d="M3 21l7.5-7.5"/><path d="M14 4l6 6-4.5 1.5L12.5 8.5 14 4z"/><path d="M10.5 13.5l2-5 3 3-5 2z"/><path d="M3 21l2.5-1 .5-2-2 .5z"/>'),
   heart: svg('<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>'),
+  targetLine: svg('<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/><path d="M19 5l-5.5 5.5M19 5h-3M19 5v3"/>'),
   play: svg('<path d="M6 4l14 8-14 8z"/>'),
   undo: svg('<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>'),
   target: `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="48" fill="#D7262B"/><circle cx="50" cy="50" r="36" fill="#F3EEDC"/><circle cx="50" cy="50" r="24" fill="#D7262B"/><circle cx="50" cy="50" r="12" fill="#F3EEDC"/></svg>`,
@@ -216,3 +217,12 @@ export function rangeSlider({ min, max, from, to, onChange }) {
 // Zufallsauswahl
 export const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 export const shuffle = arr => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+// Einheitliche Spiel-Kachel (Einzeltraining, Individuell, 1vs1)
+export function gameTile({ glyph, title, desc, selected = false, mark = null, onClick, extraClass = '' }) {
+  return h('button', { class: `gtile${selected ? ' sel' : ''} ${extraClass}`, onClick, 'aria-pressed': selected ? 'true' : null },
+    h('span', { class: 'g-glyph', 'aria-hidden': 'true' }, glyph),
+    mark != null ? h('span', { class: 'g-mark' }, mark) : null,
+    h('span', { class: 'g-title' }, title),
+    h('span', { class: 'g-desc' }, desc));
+}

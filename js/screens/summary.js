@@ -22,7 +22,7 @@ export function renderSummary(session, { onAddCheckouts, onDone, onHistory }) {
   const { ready, reasons } = readiness(session, settings);
 
   return h('section', { class: 'screen' },
-    h('div', { class: 'topbar' }, h('h2', {}, 'Auswertung', h('span', { class: 'sub' }, ({ leek: 'Das Leek’sche Trainingsprogramm', custom: 'Individuelles Trainingsprogramm', single: 'Einzel Training' })[session.mode] || 'Training'))),
+    h('div', { class: 'topbar' }, h('h2', {}, 'Auswertung', h('span', { class: 'sub' }, ({ leek: 'TheLeek Trainingsprogramm', custom: 'Individuelles Trainingsprogramm', single: 'Einzel Training' })[session.mode] || 'Training'))),
     h('div', { class: 'scroll' },
       h('div', { class: 'card', style: { textAlign: 'center' } },
         h('div', { class: 'label' }, 'Gesamtdauer'),

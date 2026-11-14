@@ -3,6 +3,8 @@
 export const SETTINGS_SCHEMA = [
   { section: 'Allgemein', key: 'sound', label: 'Töne', hint: 'Kurze Klick-, Treffer- und Timer-Töne', type: 'toggle', default: true },
   { section: 'Allgemein', key: 'versus', label: '1vs1 im Startmenü', hint: 'Duell-Modus auf einem Gerät', type: 'toggle', default: true },
+  { section: 'Allgemein', key: 'badgePopups', label: 'Abzeichen-Pop-ups', hint: 'Einblendung beim Freischalten (Abzeichen werden immer gesammelt)', type: 'toggle', default: true },
+  { section: 'Allgemein', key: 'streakHome', label: 'Trainings-Serie auf der Startseite', type: 'toggle', default: true },
 
   { section: 'Warm-up & 20-Switch', key: 'warmupMin', label: 'Warm-up-Dauer', type: 'choice', options: [[3, '3 Min'], [5, '5 Min']], default: 3 },
   { section: 'Warm-up & 20-Switch', key: 'switchMin', label: '20-Switch-Dauer', type: 'choice', options: [[3, '3 Min'], [5, '5 Min']], default: 3 },
@@ -48,6 +50,9 @@ export function defaultSettings(gameIds = DEFAULT_LEEK_ORDER) {
   s.customOrder = gameIds.map(id => ({ id, on: false }));
   s.dblCustom = ['D20', 'D10', 'D5'];
   s.vsNames = ['', ''];
+  s.vsCharacters = true;
+  s.plans = [];
+  s.dblHistory = [];
   return s;
 }
 
@@ -76,6 +81,10 @@ export function normalizeSettings(raw, knownGameIds) {
   s.customOrder = normOrder(s.customOrder, knownGameIds, () => false);
   if (!Array.isArray(s.dblCustom) || !s.dblCustom.length) s.dblCustom = ['D20', 'D10', 'D5'];
   if (!Array.isArray(s.vsNames)) s.vsNames = ['', ''];
+  if (!Array.isArray(s.plans)) s.plans = [];
+  s.plans = s.plans.filter(p => p && Array.isArray(p.games)).map(p => ({ ...p, games: p.games.filter(id => knownGameIds.includes(id)) }));
+  if (!Array.isArray(s.dblHistory)) s.dblHistory = [];
+  s.vsCharacters = s.vsCharacters !== false;
   return s;
 }
 

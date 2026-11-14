@@ -191,13 +191,12 @@ export default {
               h('div', { class: 'stat' }, h('b', {}, run.attempts), h('span', {}, 'Versuche')),
               h('div', { class: 'stat green' }, h('b', {}, run.checks), h('span', {}, 'Checks')),
               h('div', { class: 'stat red' }, h('b', {}, run.fails), h('span', {}, 'Fails')))),
+          h('div', { class: 'btn-row', style: { marginBottom: '14px' } },
+            h('button', { class: 'btn huge ghost', onClick: setup }, 'Nochmal'),
+            h('button', { class: 'btn huge primary', onClick: () => ctx.finish(lastResult()) }, 'Weiter')),
           nums.length ? h('div', { class: 'card' }, h('h3', {}, 'Pro Zahl'),
             h('div', { class: 'weak-list' }, nums.map(([n, [a, c]]) =>
-              h('div', { class: 'weak' }, h('b', {}, n), h('span', {}, `${c}/${a}`), h('div', { class: c / a < 0.5 ? 'q' : 'small-text' }, `${pct(c, a)}%`))))) : null),
-        h('div', { class: 'controls' },
-          h('div', { class: 'btn-row' },
-            h('button', { class: 'btn huge primary', onClick: () => ctx.finish(lastResult()) }, 'Weiter'),
-            h('button', { class: 'btn huge ghost', onClick: setup }, 'Nochmal')))));
+              h('div', { class: `weak ${c === a ? 'good' : c === 0 ? 'bad' : 'mixed'}` }, h('b', {}, n), h('span', {}, `${c}/${a}`), h('div', { class: 'small-text' }, `${pct(c, a)}%`))))) : null)));
     }
 
     // Mehrere Durchgänge („Nochmal“) werden zusammengefasst

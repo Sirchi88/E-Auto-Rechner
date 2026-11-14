@@ -8,7 +8,7 @@ const LOGS = ['checkoutRuns', 'atcRuns', 'l121Runs', 'doublesRuns', 'drillRuns',
 function load() {
   let raw = {};
   try { raw = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch { raw = {}; }
-  const d = { settings: raw.settings || null, sessions: Array.isArray(raw.sessions) ? raw.sessions : [], fieldStats: raw.fieldStats || {} };
+  const d = { settings: raw.settings || null, sessions: Array.isArray(raw.sessions) ? raw.sessions : [], fieldStats: raw.fieldStats || {}, badges: raw.badges || {} };
   for (const k of LOGS) d[k] = Array.isArray(raw[k]) ? raw[k] : [];
   return d;
 }
@@ -35,6 +35,8 @@ export const store = {
   get sessions() { return data.sessions; },
   get checkoutRuns() { return data.checkoutRuns; },
   get fieldStats() { return data.fieldStats; },
+  get badges() { return data.badges; },
+  unlockBadge(id) { if (data.badges[id]) return false; data.badges[id] = Date.now(); persist(); return true; },
   list(kind) { return data[kind] || []; },
   log(kind, entry) {
     (data[kind] ||= []).push(entry);
@@ -56,6 +58,7 @@ export const store = {
   resetStats() {
     data.sessions = [];
     data.fieldStats = {};
+    data.badges = {};
     for (const k of LOGS) data[k] = [];
     persist();
   },

@@ -1,69 +1,82 @@
 // 121 – 9 Darts pro Zahl. Varianten: Klassisch, Leek (Einloggen), GROB Boys (Leben).
-import { h, icon, segmented, fmtDuration } from '../ui.js';
+import { h, icon, fmtDuration } from '../ui.js';
 import { sound } from '../sound.js';
 import { checkoutPath, BOGEYS } from '../checkouts.js';
 import { store, uid } from '../store.js';
 import { pathKeys } from '../board.js';
 
 export const VARIANTS_121 = {
-  classic: { label: 'Klassisch', desc: 'In 9 Darts gecheckt → nächste Zahl. Nicht geschafft → zurück auf 121.' },
-  leek: { label: 'Leek', desc: 'Wie klassisch – aber checkst du mit den ersten 3 Darts, wird die Zahl eingeloggt: Du fällst nur noch bis dorthin zurück.' },
-  grob: { label: 'GROB Boys', desc: 'Mit Leben: Check mit 3 Darts = +2 Leben, mit 6 Darts = +1 Leben, mit 9 Darts = nur weiter. Nicht geschafft = −1 Leben. Keine Leben mehr → zurück auf 121.' },
+  classic: { label: 'Klassisch', emoji: '🎯', desc: 'In 9 Darts gecheckt → nächste Zahl. Nicht geschafft → zurück auf 121.' },
+  leek: { label: 'Leek', emoji: '🔒', desc: 'Checkst du mit den ersten 3 Darts, wird die Zahl eingeloggt – tiefer fällst du nicht mehr.' },
+  grob: { label: 'GROB Boys', emoji: '💚', desc: 'Mit Leben: 3 Darts = +2 Leben, 6 Darts = +1 Leben. Nicht geschafft = −1 Leben, ohne Leben zurück auf 121.' },
 };
 
 export const next121 = n => { let x = n + 1; while (BOGEYS.has(x)) x++; return x > 170 ? null : x; };
 
-// Reine Spiellogik (auch für 1vs1 genutzt)
+// Reine Spiellogik (auch für 1vs1). darts = 3 | 6 | 9 (gecheckt) oder 0 (nicht gecheckt).
 export function create121(variant) {
-  const st = { variant, n: 121, base: 121, visit: 0, lives: 0, highest: 0, checks: 0, attempts: 0, darts: 0, laps: 0, history: [] };
-  const snap = () => st.history.push(JSON.stringify({ ...st, history: undefined }));
+  const st = { variant, n: 121, base: 121, lives: 0, maxLives: 0, highest: 0, checks: 0, attempts: 0, darts: 0, laps: 0, history: [] };
   return {
     st,
-    // Ergebnis eines 3-Dart-Besuchs: ok = gecheckt. Gibt Ereignis zurück.
-    visit(ok) {
-      snap();
-      st.darts += 3;
-      let ev = { type: ok ? 'check' : 'miss' };
-      if (ok) {
-        st.checks++; st.attempts++;
+    attempt(darts) {
+      st.history.push(JSON.stringify({ ...st, history: undefined }));
+      st.attempts++;
+      st.darts += darts || 9;
+      const ev = { ok: darts > 0, darts };
+      if (darts > 0) {
+        st.checks++;
         st.highest = Math.max(st.highest, st.n);
-        if (variant === 'leek' && st.visit === 0) { st.base = st.n; ev.locked = st.n; }
-        if (variant === 'grob') { const g = st.visit === 0 ? 2 : st.visit === 1 ? 1 : 0; st.lives += g; ev.lives = g; }
+        if (variant === 'leek' && darts === 3 && st.n > st.base) { st.base = st.n; ev.locked = st.n; }
+        if (variant === 'grob') { const g = darts === 3 ? 2 : darts === 6 ? 1 : 0; st.lives += g; ev.lives = g; st.maxLives = Math.max(st.maxLives, st.lives); }
         const nx = next121(st.n);
         if (nx == null) { st.laps++; st.n = 121; st.base = 121; ev.lap = true; } else st.n = nx;
-        st.visit = 0;
-        ev.turnEnd = true;
-      } else if (st.visit < 2) {
-        st.visit++;
+      } else if (variant === 'grob' && st.lives > 0) {
+        st.lives--; ev.lifeLost = true;
       } else {
-        st.attempts++;
-        st.visit = 0; ev.turnEnd = true;
-        if (variant === 'grob' && st.lives > 0) { st.lives--; ev.lifeLost = true; }
-        else { ev.fallback = st.base; st.n = st.base; if (variant === 'grob') { st.base = 121; st.n = 121; } }
+        ev.fallback = variant === 'grob' ? 121 : st.base;
+        st.n = ev.fallback;
       }
       return ev;
     },
     undo() {
       const prev = st.history.pop();
       if (!prev) return false;
-      const h2 = st.history; Object.assign(st, JSON.parse(prev)); st.history = h2;
+      const hist = st.history; Object.assign(st, JSON.parse(prev)); st.history = hist;
       return true;
     },
   };
 }
 
+// Die vier Eingabe-Buttons (auch im 1vs1 genutzt)
+export function buttons121(variant, onAttempt) {
+  const sub = d => variant === 'grob' ? (d === 3 ? '+2 Leben' : d === 6 ? '+1 Leben' : 'nur weiter')
+    : variant === 'leek' ? (d === 3 ? 'Zahl einloggen 🔒' : 'weiter') : 'weiter';
+  const okBtn = d => h('button', { class: 'btn check c121', 'data-snd': 'none', onClick: () => onAttempt(d) },
+    h('span', {}, 'Geschafft mit'), h('b', { class: 'dn' }, `${d} Darts`), h('small', { class: 'btn-sub' }, sub(d)));
+  return h('div', { class: 'grid121' },
+    okBtn(3), okBtn(6), okBtn(9),
+    h('button', { class: 'btn fail c121', 'data-snd': 'none', onClick: () => onAttempt(0) },
+      h('b', { class: 'dn' }, 'Nicht'), h('span', {}, 'gecheckt'), h('small', { class: 'btn-sub' }, variant === 'grob' ? '−1 Leben' : 'zurück')));
+}
+
+export function lifeHearts(n) {
+  return h('span', { class: 'green-hearts' }, n <= 0 ? '' : n <= 6 ? '💚'.repeat(n) : '💚 ×');
+}
+
+export const sound121 = (ev) => sound.play(ev.locked ? 'lock' : ev.lives ? 'lifeGain' : ev.lap ? 'record' : ev.ok ? 'hit' : (ev.lifeLost || ev.fallback) ? 'lifeLost' : 'miss');
+
 export default {
   id: 'l121',
   name: '121',
-  short: '9 Darts pro Zahl – schaffst du es, geht’s eins höher.',
+  short: '9 Darts pro Zahl – wie hoch kommst du?',
   tracked: true,
   info: {
     lines: [
       'Start bei 121. Du hast 9 Darts (3 Aufnahmen), um die Zahl auszuchecken.',
       'Geschafft → nächste Zahl (122, 123 …). Nicht geschafft → zurück.',
       'Leek: Check mit den ersten 3 Darts loggt die Zahl ein – tiefer fällst du nicht mehr.',
-      'GROB Boys: Leben sammeln (3 Darts = +2, 6 Darts = +1). Fehlversuch kostet ein Leben, ohne Leben zurück auf 121.',
-      'Nach jeder Aufnahme: „Gecheckt“ oder „Nicht gecheckt“. Schluss machst du mit „Reicht für heute“.',
+      'GROB Boys: 3 Darts = +2 Leben, 6 Darts = +1 Leben. Fehlversuch kostet ein Leben, ohne Leben zurück auf 121.',
+      'Nach jeder Zahl tippst du, mit wie vielen Darts du gecheckt hast. „Fertig“ beendet das Spiel.',
     ],
     steps: [
       { hl: pathKeys('T20 T11 D14'), cap: '121 = T20 · T11 · D14', darts: [['T20', true], ['T11', true], ['D14', true]] },
@@ -73,75 +86,67 @@ export default {
   },
   mount(root, ctx) {
     let variant = ctx.settings.l121Variant;
-    let game, startedAt, phase = 'setup', toastMsg = '';
+    let game, startedAt, phase = 'setup', flash = '';
 
     function setup() {
       phase = 'setup';
-      const desc = h('p', { class: 'muted', style: { margin: '10px 0 0' } }, VARIANTS_121[variant].desc);
+      const cards = h('div', { class: 'variant-list' });
+      const paint = () => cards.replaceChildren(...Object.entries(VARIANTS_121).map(([k, v]) =>
+        h('button', { class: `variant${k === variant ? ' on' : ''}`, onClick: () => { variant = k; paint(); } },
+          h('span', { class: 'v-emoji' }, v.emoji),
+          h('span', { class: 'v-txt' }, h('b', {}, v.label), h('span', {}, v.desc)))));
+      paint();
       root.replaceChildren(h('div', { class: 'game' },
-        h('div', { class: 'stage' },
-          h('div', { class: 'big medium leek' }, '121'),
-          h('div', { class: 'card setup-card' },
-            h('h3', {}, 'Variante'),
-            segmented(Object.entries(VARIANTS_121).map(([k, v]) => [k, v.label]), variant, v => { variant = v; desc.textContent = VARIANTS_121[v].desc; }),
-            desc)),
-        h('div', { class: 'controls' }, h('button', { class: 'btn huge primary', 'data-snd': 'start', onClick: start }, 'Start'))));
+        h('div', { class: 'scroll stack', style: { paddingTop: '6px' } }, h('div', { class: 'label' }, 'Variante wählen'), cards),
+        h('div', { class: 'controls' }, h('button', { class: 'btn huge primary', 'data-snd': 'start', onClick: start }, 'Start bei 121'))));
     }
 
     function start() {
-      game = create121(variant); startedAt = Date.now(); phase = 'play'; toastMsg = '';
+      game = create121(variant); startedAt = Date.now(); phase = 'play'; flash = '';
       render();
     }
 
-    function act(ok) {
-      const ev = game.visit(ok);
-      toastMsg = '';
-      if (ev.locked) { sound.play('lock'); toastMsg = `🔒 ${ev.locked} eingeloggt`; }
-      else if (ev.lives === 2) { sound.play('lifeGain'); toastMsg = '+2 Leben'; }
-      else if (ev.lives === 1) { sound.play('lifeGain'); toastMsg = '+1 Leben'; }
-      else if (ev.lap) { sound.play('record'); toastMsg = '170 gecheckt! Neue Runde ab 121'; }
-      else if (ok) sound.play('hit');
-      else if (ev.lifeLost) { sound.play('lifeLost'); toastMsg = '−1 Leben'; }
-      else if (ev.fallback) { sound.play('lifeLost'); toastMsg = `Zurück auf ${ev.fallback}`; }
-      else sound.play('miss');
+    function act(darts) {
+      const ev = game.attempt(darts);
+      sound121(ev);
+      flash = ev.locked ? `🔒 ${ev.locked} eingeloggt` : ev.lives ? `+${ev.lives} Leben 💚` : ev.lap ? '170 gecheckt! Neue Runde ab 121'
+        : ev.ok ? 'Sauber – weiter!' : ev.lifeLost ? '−1 Leben' : `Zurück auf ${ev.fallback}`;
       render();
     }
 
     function render() {
       const st = game.st;
-      const path = checkoutPath(st.n);
       root.replaceChildren(h('div', { class: 'game' },
-        h('div', { class: 'stage' },
-          h('div', { class: 'chip-row center' },
-            h('span', { class: 'pill' }, VARIANTS_121[variant].label),
-            variant !== 'classic' ? h('span', { class: 'pill' }, variant === 'grob' ? `❤ ${st.lives} Leben` : `🔒 Basis ${st.base}`) : null,
-            h('span', { class: 'pill' }, `Bestes: ${st.highest || '–'}`)),
-          h('div', { class: 'label', style: { marginTop: '10px' } }, 'Checke'),
-          h('div', { class: 'big' }, st.n),
-          h('div', { class: 'path' }, path),
-          h('div', { class: 'visits' }, [0, 1, 2].map(v => h('span', { class: v < st.visit ? 'used' : v === st.visit ? 'cur' : '' }, `Darts ${v * 3 + 1}–${v * 3 + 3}`))),
-          toastMsg ? h('div', { class: 'flash' }, toastMsg) : null),
+        h('div', { class: 'stage s121' },
+          h('div', { class: 'info121' },
+            h('div', { class: 'i-item' }, h('span', {}, 'Variante'), h('b', {}, VARIANTS_121[variant].label)),
+            variant === 'grob' ? h('div', { class: 'i-item main' }, h('span', {}, 'Leben'), h('b', {}, lifeHearts(st.lives), h('em', {}, st.lives)))
+              : variant === 'leek' ? h('div', { class: 'i-item main' }, h('span', {}, 'Eingeloggt'), h('b', {}, `🔒 ${st.base}`))
+              : null,
+            h('div', { class: 'i-item' }, h('span', {}, 'Bestes'), h('b', {}, st.highest || '–'))),
+          h('div', { class: 'label' }, 'Checke'),
+          h('div', { class: 'big n121' }, st.n),
+          h('div', { class: 'path' }, checkoutPath(st.n)),
+          h('div', { class: `flash ${flash ? '' : 'empty'}` }, flash || ' ')),
         h('div', { class: 'controls' },
+          buttons121(variant, act),
           h('div', { class: 'btn-row' },
-            h('button', { class: 'btn huge fail stacked', 'data-snd': 'none', onClick: () => act(false) }, 'Nicht gecheckt', h('small', { class: 'btn-sub' }, 'Aufnahme vorbei')),
-            h('button', { class: 'btn huge check', 'data-snd': 'none', onClick: () => act(true) }, 'Gecheckt')),
-          h('div', { class: 'btn-row' },
-            h('button', { class: 'btn ghost small', disabled: !st.history.length, onClick: () => { game.undo(); toastMsg = ''; render(); } }, icon('undo'), 'Undo'),
-            h('button', { class: 'btn ghost small', onClick: finish }, 'Reicht für heute')))));
+            h('button', { class: 'btn ghost small', disabled: !st.history.length, onClick: () => { game.undo(); flash = ''; render(); } }, icon('undo'), 'Undo'),
+            h('button', { class: 'btn ghost small', onClick: finish }, 'Fertig')))));
     }
 
     function finish() {
       phase = 'result';
       const st = game.st;
       const prevBest = Math.max(0, ...store.list('l121Runs').filter(r => r.variant === variant).map(r => r.highest || 0));
-      const run = { id: uid(), date: Date.now(), variant, highest: st.highest, checks: st.checks, attempts: st.attempts, darts: st.darts, durationMs: Date.now() - startedAt };
-      if (st.darts) store.log('l121Runs', run);
+      const run = { id: uid(), date: Date.now(), variant, highest: st.highest, checks: st.checks, attempts: st.attempts, darts: st.darts, maxLives: st.maxLives, durationMs: Date.now() - startedAt };
+      if (st.attempts) store.log('l121Runs', run);
       const record = st.highest > prevBest && st.highest > 0;
       sound.play(record ? 'record' : 'finish');
       root.replaceChildren(h('div', { class: 'game' },
         h('div', { class: 'stage' },
           h('div', { class: 'label' }, `121 · ${VARIANTS_121[variant].label}`),
-          record ? h('div', { class: 'ok-badge' }, 'Neuer Rekord! 🏆') : null,
+          h('div', { class: 'ok-badge', style: { visibility: record ? 'visible' : 'hidden' } }, 'Neuer Rekord! 🏆'),
           h('div', { class: 'big leek' }, st.highest || '–'),
           h('div', { class: 'label' }, 'Höchste gecheckte Zahl'),
           h('div', { class: 'statline', style: { marginTop: '12px' } },
@@ -151,16 +156,16 @@ export default {
           h('p', { class: 'muted small-text' }, `${st.darts} Darts · ${fmtDuration(run.durationMs)}`)),
         h('div', { class: 'controls' },
           h('div', { class: 'btn-row' },
-            h('button', { class: 'btn huge primary', onClick: () => ctx.finish({ variant, highest: st.highest, checks: st.checks, attempts: st.attempts }) }, 'Weiter'),
-            h('button', { class: 'btn huge ghost', onClick: setup }, 'Nochmal')))));
+            h('button', { class: 'btn huge ghost', onClick: ctx.leek ? start : setup }, 'Nochmal'),
+            h('button', { class: 'btn huge primary', onClick: () => ctx.finish({ variant, highest: st.highest, checks: st.checks, attempts: st.attempts }) }, 'Weiter')))));
     }
 
     ctx.onKey(e => {
       if (phase === 'setup' && e.key === 'Enter') { e.preventDefault(); sound.play('start'); start(); }
       else if (phase === 'play') {
-        if (e.key === 'Enter') { e.preventDefault(); act(true); }
-        else if (e.key === ' ') { e.preventDefault(); act(false); }
-        else if (e.key === 'Backspace') { e.preventDefault(); game.undo(); toastMsg = ''; render(); }
+        const map = { 1: 3, 2: 6, 3: 9, 0: 0, ' ': 0 };
+        if (e.key in map) { e.preventDefault(); act(map[e.key]); }
+        else if (e.key === 'Backspace') { e.preventDefault(); game.undo(); flash = ''; render(); }
       }
     });
     ctx.leek ? start() : setup();
