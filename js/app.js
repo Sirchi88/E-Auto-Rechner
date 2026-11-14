@@ -71,7 +71,7 @@ export function goHome() {
     h('div', { class: 'mode-cards' },
       tile('', h('img', { class: 'tile-art', src: 'icons/mascot.webp', alt: '' }), 'TheLeek Trainingsprogramm', 'Festes Programm – läuft automatisch durch.', () => leekPreview()),
       tile('', h('span', { class: 'tile-art svg', html: ICONS.sliders }), 'Individuelles Trainingsprogramm', s.plans.length ? `${s.plans.length} gespeicherte${s.plans.length === 1 ? 'r Plan' : ' Pläne'}` : 'Eigenen Plan bauen und speichern.', () => customFlow(appApi()).start()),
-      tile('', h('span', { class: 'tile-art svg', html: ICONS.targetLine }), 'Einzeltraining', 'Wenn’s auch mal nur eins sein darf.', () => goSingles()),
+      tile('', h('img', { class: 'tile-art thrower', src: 'icons/thrower.webp', alt: '' }), 'Einzeltraining', 'Wenn’s auch mal nur eins sein darf.', () => goSingles()),
       s.versus ? tile('', h('img', { class: 'tile-art duel', src: 'icons/duel.webp', alt: '' }), '1vs1', 'Duell auf einem Gerät.', () => versusFlow(appApi()).start()) : null),
     h('p', { class: 'resume-hint' }, 'Konzentriert aufwärmen – dann ab ins Match. 🎯')));
 }
@@ -212,11 +212,11 @@ function goAdmin() {
 // ---------------- Start ----------------
 goHome();
 const splash = document.getElementById('splash');
-// Ablauf: Logo erscheint → Zwinkern → Logo fliegt dezent auf einen zu und verblasst → App
+// Ablauf: Logo erscheint → Lauch zwinkert → sanft ausblenden → App
 setTimeout(() => splash.classList.add('wink'), 750);
 setTimeout(() => splash.classList.remove('wink'), 1300);
-setTimeout(() => splash.classList.add('fly'), 1400);
-setTimeout(() => splash.remove(), 2250);
+setTimeout(() => splash.classList.add('hide'), 1650);
+setTimeout(() => splash.remove(), 2300);
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

@@ -1,5 +1,5 @@
 // Service Worker: alles vorab cachen → App läuft offline.
-const CACHE = 'leek-darttraining-v3';
+const CACHE = 'leek-darttraining-v4';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'js/app.js', 'js/ui.js', 'js/store.js', 'js/settings.js', 'js/checkouts.js', 'js/chart.js', 'js/wakelock.js',
@@ -8,7 +8,7 @@ const ASSETS = [
   'js/games/checkouts.js', 'js/games/doubles.js', 'js/games/l121.js', 'js/games/drill.js', 'js/games/survival.js',
   'js/screens/summary.js', 'js/screens/history.js', 'js/screens/admin.js', 'js/screens/versus.js', 'js/screens/custom.js',
   'fonts/bebas-neue.woff2', 'fonts/rajdhani-600.woff2', 'fonts/rajdhani-700.woff2', 'fonts/sora-600.woff2', 'fonts/inter-400.woff2', 'fonts/inter-600.woff2',
-  'icons/logo.webp', 'icons/logo-wink.webp', 'icons/mascot.webp', 'icons/duel.webp',
+  'icons/logo.webp', 'icons/logo-wink.webp', 'icons/mascot.webp', 'icons/duel.webp', 'icons/thrower.webp',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png',
 ];
 
