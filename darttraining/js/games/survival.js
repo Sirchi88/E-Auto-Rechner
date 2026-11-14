@@ -137,7 +137,7 @@ export default {
     function start() {
       sound.play('start');
       engine = makeTaskEngine(diff);
-      st = { round: 1, lives: lives0[diff], startLives: lives0[diff], lost: 0, gained: 0, ok: 0, fail: 0, streak: 0, bestStreak: 0, catFails: {}, task: null };
+      st = { round: 1, bossWins: 0, lives: lives0[diff], startLives: lives0[diff], lost: 0, gained: 0, ok: 0, fail: 0, streak: 0, bestStreak: 0, catFails: {}, task: null };
       st.task = engine(1);
       startedAt = Date.now(); phase = 'play'; flash = null;
       render();
@@ -150,6 +150,7 @@ export default {
       if (t.field) store.addFieldStat(t.field, 3, ok ? 1 : 0);
       if (ok) {
         st.ok++; st.streak++; st.bestStreak = Math.max(st.bestStreak, st.streak);
+        if (t.kind === 'boss') st.bossWins++;
         let gain = t.kind === 'boss' ? 2 : t.kind === 'bonus' || t.kind === 'danger' ? 1 : 0;
         let msg = pick(QUIPS_OK);
         if (st.streak > 0 && st.streak % 5 === 0) { gain++; msg = `🔥 ${st.streak}er-Serie!`; }
@@ -179,7 +180,7 @@ export default {
       const badge = t.kind === 'boss' ? h('div', { class: 'task-badge boss' }, 'BOSS 💀 · Einsatz 2 Leben · Sieg +2')
         : t.kind === 'bonus' ? h('div', { class: 'task-badge bonus' }, 'BONUS 🎁 · +1 Leben · kein Risiko')
         : t.kind === 'danger' ? h('div', { class: 'task-badge danger' }, '⚡ Doppelte Gefahr · −2 / +1')
-        : null;
+        : h('div', { class: 'task-badge', style: { visibility: 'hidden' } }, '\u00a0');
       root.replaceChildren(h('div', { class: 'game' },
         h('div', { class: 'stage' },
           h('div', { class: 'sv-head' },
@@ -191,7 +192,7 @@ export default {
             h('div', { class: 'task-text' }, t.text),
             h('div', { class: 'task-sub' }, t.sub)),
           h('div', { class: 'board-wrap small' }, board.el),
-          flash ? h('div', { class: `flash ${flash.ok ? 'ok' : 'bad'}` }, flash.msg) : null),
+          h('div', { class: `flash ${flash ? (flash.ok ? 'ok' : 'bad') : 'empty'}` }, flash ? flash.msg : '\u00a0')),
         h('div', { class: 'controls' },
           h('div', { class: 'btn-row' },
             h('button', { class: 'btn huge fail', 'data-snd': 'none', onClick: () => answer(false) }, 'Verfehlt'),
@@ -210,7 +211,7 @@ export default {
       const run = {
         id: uid(), date: Date.now(), difficulty: diff, startLives: st.startLives,
         highestRound: st.round, survived: st.round - 1, livesLost: st.lost, livesGained: st.gained,
-        ok: st.ok, fail: st.fail, quote: pct(st.ok, total), bestStreak: st.bestStreak, durationMs: Date.now() - startedAt,
+        ok: st.ok, fail: st.fail, quote: pct(st.ok, total), bestStreak: st.bestStreak, bossWins: st.bossWins, durationMs: Date.now() - startedAt,
       };
       store.log('survivalRuns', run);
       const record = run.highestRound > best;
@@ -234,8 +235,8 @@ export default {
             nemesis ? h('p', { class: 'muted small-text', style: { marginTop: '12px' } }, `Deine Nemesis heute: ${nemesis[0]} (${nemesis[1]}× verfehlt) – ab zu „Dran bleiben Junge“!`) : null)),
         h('div', { class: 'controls' },
           h('div', { class: 'btn-row' },
-            h('button', { class: 'btn huge primary', onClick: () => ctx.finish({ difficulty: diff, highestRound: run.highestRound, quote: run.quote, livesLost: run.livesLost, record }) }, 'Weiter'),
-            h('button', { class: 'btn huge ghost', onClick: setup }, 'Nochmal')))));
+            h('button', { class: 'btn huge ghost', onClick: setup }, 'Nochmal'),
+            h('button', { class: 'btn huge primary', onClick: () => ctx.finish({ difficulty: diff, highestRound: run.highestRound, quote: run.quote, livesLost: run.livesLost, record }) }, 'Weiter')))));
     }
 
     ctx.onKey(e => {

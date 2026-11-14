@@ -51,7 +51,7 @@ export function renderAdmin({ onBack }) {
   function leekOrderCard() {
     const list = orderEditor(() => store.settings.leekOrder, order => update({ leekOrder: order }), id => gameById(id).name);
     return h('div', { class: 'card' },
-      h('h3', {}, 'Das Leek’sche Trainingsprogramm'),
+      h('h3', {}, 'TheLeek Trainingsprogramm'),
       h('p', { class: 'muted small-text' }, 'Haken = Spiel ist enthalten. Reihenfolge per Pfeil oder am Griff ziehen. Im Programm starten die Spiele direkt mit den Standardwerten.'),
       list,
       h('button', { class: 'btn ghost small', style: { width: '100%', marginTop: '10px' }, onClick: () => { update({ leekOrder: defaultSettings(GAME_IDS).leekOrder }); list.repaint(); } }, 'Standard-Reihenfolge'));

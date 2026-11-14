@@ -12,7 +12,7 @@ export function timedGame({ id, name, short, settingKey, title, renderHint, info
 
       const clock = h('div', { class: 'big timer' }, fmtClock(minutes * 60000));
       const status = h('div', { class: 'label' }, title);
-      const chooser = h('div', {}, segmented([[3, '3 Min'], [5, '5 Min']], minutes, v => {
+      const chooser = h('div', { class: 'chooser' }, segmented([[3, '3 Min'], [5, '5 Min']], minutes, v => {
         minutes = v; timer = makeTimer(); clock.textContent = fmtClock(minutes * 60000);
       }));
       const mainBtn = h('button', { class: 'btn huge primary', 'data-snd': 'none', onClick: () => main() }, 'Start');
@@ -31,12 +31,13 @@ export function timedGame({ id, name, short, settingKey, title, renderHint, info
         },
       });
       let timer = makeTimer();
+      if (ctx.leek) chooser.style.visibility = 'hidden';
 
       function main() {
         if (ended) { sound.play('tap'); return ctx.finish({ minutes, completed: true }); }
         if (!started) {
           sound.play('start');
-          started = true; chooser.hidden = true; nextBtn.textContent = 'Beenden & weiter';
+          started = true; chooser.style.visibility = 'hidden'; nextBtn.textContent = 'Beenden & weiter';
           timer.start(); mainBtn.textContent = 'Pause'; mainBtn.className = 'btn huge ghost';
           return;
         }

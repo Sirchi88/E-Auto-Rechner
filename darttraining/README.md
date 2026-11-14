@@ -15,7 +15,8 @@ Für die Installation als App (Homescreen) und den Offline-Modus muss die Seite 
 (oder `localhost`) ausgeliefert werden, z. B. per GitHub Pages / Netlify mit dem Ordner `darttraining/` als Wurzel.
 
 ## Inhalt
-- **Startmenü:** Das Leek’sche Trainingsprogramm · Individuelles Trainingsprogramm · Einzel Trainings · 1vs1 (im Admin abschaltbar)
+- **Startmenü:** TheLeek Trainingsprogramm · Individuelles Trainingsprogramm (gespeicherte Pläne mit Namen & Parametern) · Einzeltraining · 1vs1 (im Admin abschaltbar)
+- **Extras:** Trainings-Kalender + Serie, Leek-Abzeichen, Fernsicht-Modus im Querformat
 - **Spiele:** Warm-up, 20/19/18/17/Bull, Around the Clock Single/Doppel/Triple (Modus Einfach/Ausführlich), 20-Switch,
   Random Checkouts, Ich liebe meine Doppel, 121 (Klassisch/Leek/GROB Boys), Dran bleiben Junge, Leek Survival
 - **1vs1:** Around the Clock (alle Varianten), 121 (alle Varianten), Random Checkouts – auf einem Gerät
@@ -38,6 +39,8 @@ js/board.js                               animierbare SVG-Dartscheibe
 js/sound.js                               kurze Web-Audio-Töne
 js/info.js                                „i“-Erklärung pro Spiel
 js/weakness.js                            Schwächen-Analyse für „Dran bleiben Junge“
+js/plans.js                               Plan-Parameter pro Spiel
+js/calendar.js, js/badges.js              Kalender/Serie und Abzeichen
 js/screens/*.js                           Auswertung, Statistik-Verlauf, Admin, 1vs1
 js/checkouts.js                           Checkout-Wege (Double-Out)
 ```

@@ -10,7 +10,7 @@ export function lineChart(series, { yMax, ySuffix = '', xLabels = [], height = 2
   const W = 640, H = height, L = 40, R = 14, T = 12, B = 26;
   const n = Math.max(xLabels.length, ...series.map(s => s.points.length), 1);
   const maxY = yMax ?? Math.max(1, ...series.flatMap(s => s.points.map(p => p.y)));
-  const niceMax = yMax ?? niceCeil(maxY);
+  const niceMax = yMax ?? Math.max(4, niceCeil(maxY));
   const x = i => L + (n === 1 ? (W - L - R) / 2 : (i / (n - 1)) * (W - L - R));
   const y = v => T + (1 - v / niceMax) * (H - T - B);
 
