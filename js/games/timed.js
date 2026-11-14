@@ -1,9 +1,10 @@
 // Baustein für reine Timer-Spiele (Warm-up, 20-Switch).
 import { h, Countdown, fmtClock, segmented } from '../ui.js';
+import { sound } from '../sound.js';
 
-export function timedGame({ id, name, short, settingKey, title, renderHint }) {
+export function timedGame({ id, name, short, settingKey, title, renderHint, info }) {
   return {
-    id, name, short, tracked: false,
+    id, name, short, info, tracked: false,
     mount(root, ctx) {
       let minutes = ctx.settings[settingKey];
       let started = false;
@@ -11,19 +12,18 @@ export function timedGame({ id, name, short, settingKey, title, renderHint }) {
 
       const clock = h('div', { class: 'big timer' }, fmtClock(minutes * 60000));
       const status = h('div', { class: 'label' }, title);
-      const hint = renderHint();
       const chooser = h('div', {}, segmented([[3, '3 Min'], [5, '5 Min']], minutes, v => {
         minutes = v; timer = makeTimer(); clock.textContent = fmtClock(minutes * 60000);
       }));
-      const mainBtn = h('button', { class: 'btn huge primary', onClick: () => main() }, 'Start');
-      const nextBtn = h('button', { class: 'btn ghost', onClick: () => ctx.finish({ minutes, completed: ended }) }, started ? 'Weiter' : 'Überspringen');
+      const mainBtn = h('button', { class: 'btn huge primary', 'data-snd': 'none', onClick: () => main() }, 'Start');
+      const nextBtn = h('button', { class: 'btn ghost', onClick: () => ctx.finish({ minutes, completed: ended }) }, 'Überspringen');
 
       const makeTimer = () => new Countdown(minutes * 60000, {
-        onTick: left => { clock.textContent = fmtClock(left); },
+        onTick: left => { clock.textContent = fmtClock(left); clock.classList.toggle('last', left <= 60000 && left > 0); },
         onEnd: () => {
           ended = true;
           status.textContent = 'Zeit um!';
-          clock.classList.remove('paused');
+          clock.classList.remove('paused', 'last');
           clock.classList.add('leek');
           mainBtn.textContent = 'Weiter';
           mainBtn.className = 'btn huge primary';
@@ -33,12 +33,14 @@ export function timedGame({ id, name, short, settingKey, title, renderHint }) {
       let timer = makeTimer();
 
       function main() {
-        if (ended) return ctx.finish({ minutes, completed: true });
+        if (ended) { sound.play('tap'); return ctx.finish({ minutes, completed: true }); }
         if (!started) {
+          sound.play('start');
           started = true; chooser.hidden = true; nextBtn.textContent = 'Beenden & weiter';
           timer.start(); mainBtn.textContent = 'Pause'; mainBtn.className = 'btn huge ghost';
           return;
         }
+        sound.play('tap');
         timer.toggle();
         clock.classList.toggle('paused', !timer.running);
         status.textContent = timer.running ? title : 'Pausiert';
@@ -51,12 +53,12 @@ export function timedGame({ id, name, short, settingKey, title, renderHint }) {
       });
 
       root.append(h('div', { class: 'game' },
-        h('div', { class: 'stage' }, status, clock, hint, chooser),
+        h('div', { class: 'stage' }, status, clock, renderHint(), chooser),
         h('div', { class: 'controls' }, mainBtn, nextBtn)));
 
       return () => timer.stop();
     },
-    summary(data) {
+    summary() {
       return { value: 'absolviert ✓', bad: null };
     },
   };

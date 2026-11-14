@@ -1,21 +1,36 @@
 // Random Checkouts – Double-Out, 3 Darts pro Zahl, Check/Fail.
-import { h, icon, Countdown, fmtClock, segmented, stepper, toggleSwitch, pct } from '../ui.js';
+import { h, icon, Countdown, fmtClock, segmented, stepper, toggleSwitch, rangeSlider, pct } from '../ui.js';
+import { sound } from '../sound.js';
 import { checkoutPath, checkablePool } from '../checkouts.js';
 import { store, uid } from '../store.js';
+import { pathKeys } from '../board.js';
 
 export default {
   id: 'checkouts',
   name: 'Random Checkouts',
   short: 'Zufällige Restzahl, 3 Darts: Check oder Fail.',
   tracked: true,
+  info: {
+    lines: [
+      'Die App zeigt eine zufällige Restzahl (Double-Out).',
+      'Du hast 3 Darts. Ausgecheckt → „Check“ (Enter), sonst „Fail“ (Leertaste).',
+      'Modus „Checks“: Es zählen nur geschaffte Checkouts, bis die Zielanzahl erreicht ist.',
+      'Modus „Zeit“: so viele Checkouts wie möglich in der eingestellten Zeit.',
+    ],
+    steps: [
+      { hl: pathKeys('T19 D12'), cap: '81 = T19 · D12', darts: [['T19', true], ['D12', true]] },
+      { hl: pathKeys('T20 D10'), cap: '80 = T20 · D10', darts: [['S20', true], ['D20', true]] },
+      { hl: ['BULL'], cap: '50 = Bull', darts: [['50', true]] },
+    ],
+  },
   mount(root, ctx) {
     const s = ctx.settings;
     let mode = s.coMode;
     let minutes = s.coMinutes;
     let count = s.coCount;
     let showPath = s.coShowPath;
-    let pool = checkablePool(s.coMin, s.coMax);
-    if (!pool.length) pool = checkablePool(20, 90);
+    let rMin = s.coMin, rMax = s.coMax;
+    let pool;
 
     let entries, current, timer, finished, startedAt;
     let phase = 'setup';
@@ -25,23 +40,27 @@ export default {
     function setup() {
       cleanupTimer();
       phase = 'setup';
+      const slider = rangeSlider({ min: 2, max: 170, from: rMin, to: rMax, onChange: (a, b) => { rMin = a; rMax = b; } });
       root.replaceChildren(h('div', { class: 'game' },
         h('div', { class: 'scroll stack', style: { paddingTop: '8px' } },
           h('div', { class: 'card' },
-            h('h3', {}, 'Modus'),
-            h('div', { class: 'field' }, h('div', { class: 'f-label' }, 'Spielen nach'),
-              segmented([['time', 'Zeit'], ['count', 'Anzahl']], mode, v => { mode = v; setup(); })),
+            h('h3', {}, 'Zahlenbereich'),
+            slider,
+            h('button', { class: 'chip-btn', onClick: () => slider.set(20, 90) }, 'Empfohlen: 20 – 90')),
+          h('div', { class: 'card' },
+            h('h3', {}, 'Spielen nach'),
+            h('div', { class: 'field' }, h('div', { class: 'f-label' }, 'Modus'),
+              segmented([['count', 'Checks'], ['time', 'Zeit']], mode, v => { mode = v; setup(); })),
             mode === 'time'
               ? h('div', { class: 'field' }, h('div', { class: 'f-label' }, 'Dauer', h('small', {}, 'Minuten')),
                   stepper(minutes, { min: 1, max: 120 }, v => { minutes = v; }))
-              : h('div', { class: 'field' }, h('div', { class: 'f-label' }, 'Anzahl Checkouts', h('small', {}, '10–30')),
-                  stepper(count, { min: 10, max: 30 }, v => { count = v; })),
+              : h('div', { class: 'field' }, h('div', { class: 'f-label' }, 'Checks benötigt', h('small', {}, 'Nur geschaffte Checkouts zählen')),
+                  stepper(count, { min: 1, max: 100 }, v => { count = v; })),
             h('div', { class: 'field' }, h('div', { class: 'f-label' }, 'Checkout-Weg anzeigen', h('small', {}, 'z. B. 81 = T19 D12')),
               toggleSwitch(showPath, v => { showPath = v; }, 'Checkout-Weg anzeigen'))),
           h('p', { class: 'muted small-text', style: { textAlign: 'center', margin: '4px 0' } },
-            `Range ${s.coMin}–${s.coMax} · Double-Out · 3 Darts pro Zahl`, h('br'),
-            'Tastatur: Enter = Check · Leertaste = Fail · Backspace = Undo')),
-        h('div', { class: 'controls' }, h('button', { class: 'btn huge primary', onClick: start }, 'Los geht’s'))));
+            'Double-Out · 3 Darts pro Zahl', h('br'), 'Tastatur: Enter = Check · Leertaste = Fail · Backspace = Undo')),
+        h('div', { class: 'controls' }, h('button', { class: 'btn huge primary', 'data-snd': 'none', onClick: start }, 'Los geht’s'))));
     }
 
     function pick() {
@@ -53,7 +72,11 @@ export default {
 
     // ---------- Spiel ----------
     let el = {};
+    const checksOf = () => entries.filter(e => e.ok).length;
     function start() {
+      sound.play('start');
+      pool = checkablePool(rMin, rMax);
+      if (!pool.length) pool = checkablePool(20, 90);
       entries = []; finished = false; current = null; startedAt = Date.now(); phase = 'play';
       current = pick();
       el.number = h('div', { class: 'big' });
@@ -61,6 +84,7 @@ export default {
       el.progressBar = h('i');
       el.progressText = h('div', { class: 'label' });
       el.checks = h('b'); el.fails = h('b'); el.quote = h('b');
+      el.attempts = h('div', { class: 'attempt-counter' });
       el.undo = h('button', { class: 'btn ghost small', onClick: undo }, icon('undo'), 'Undo');
       el.pause = mode === 'time' ? h('button', { class: 'btn ghost small', onClick: togglePause }, 'Pause') : null;
       const pathToggle = toggleSwitch(showPath, v => { showPath = v; paint(); }, 'Checkout-Weg anzeigen');
@@ -75,13 +99,14 @@ export default {
           h('div', { class: 'statline', style: { marginTop: '8px' } },
             h('div', { class: 'stat green' }, el.checks, h('span', {}, 'Checks')),
             h('div', { class: 'stat red' }, el.fails, h('span', {}, 'Fails')),
-            h('div', { class: 'stat' }, el.quote, h('span', {}, 'Quote')))),
+            h('div', { class: 'stat' }, el.quote, h('span', {}, 'Quote'))),
+          el.attempts),
         h('div', { class: 'controls' },
           h('div', { class: 'btn-row' },
-            h('button', { class: 'btn huge fail stacked', onClick: () => enter(false) }, 'Fail', h('small', { class: 'btn-sub' }, 'Leertaste')),
-            h('button', { class: 'btn huge check stacked', onClick: () => enter(true) }, 'Check', h('small', { class: 'btn-sub' }, 'Enter'))),
+            h('button', { class: 'btn huge fail stacked', 'data-snd': 'none', onClick: () => enter(false) }, 'Fail', h('small', { class: 'btn-sub' }, 'Leertaste')),
+            h('button', { class: 'btn huge check stacked', 'data-snd': 'none', onClick: () => enter(true) }, 'Check', h('small', { class: 'btn-sub' }, 'Enter'))),
           h('div', { class: 'btn-row', style: { gridTemplateColumns: el.pause ? 'auto 1fr 1fr' : 'auto 1fr' } },
-            h('label', { class: 'btn ghost small', style: { gap: '10px', fontSize: '1.1rem' } }, 'Weg', pathToggle),
+            h('label', { class: 'btn ghost small', style: { gap: '10px', fontSize: '1rem' } }, 'Weg', pathToggle),
             el.undo, el.pause))));
 
       if (mode === 'time') {
@@ -93,21 +118,22 @@ export default {
 
     function paint() {
       if (finished || !el.number) return;
-      const checks = entries.filter(e => e.ok).length;
+      const checks = checksOf();
       const fails = entries.length - checks;
       el.number.textContent = current;
       el.path.textContent = checkoutPath(current);
       el.path.classList.toggle('off', !showPath);
       el.checks.textContent = checks; el.fails.textContent = fails;
       el.quote.textContent = `${pct(checks, entries.length)}%`;
+      el.attempts.textContent = `Versuche: ${entries.length}`;
       el.undo.disabled = !entries.length;
       if (mode === 'time') {
-        el.progressText.textContent = `${fmtClock(timer.left)} · ${entries.length} gespielt${timer.running ? '' : ' · Pausiert'}`;
+        el.progressText.textContent = `${fmtClock(timer.left)}${timer.running ? '' : ' · Pausiert'}`;
         el.progressBar.style.width = `${100 - (timer.left / timer.total) * 100}%`;
         el.number.classList.toggle('paused', !timer.running);
       } else {
-        el.progressText.textContent = `Checkout ${Math.min(entries.length + 1, count)} / ${count}`;
-        el.progressBar.style.width = `${(entries.length / count) * 100}%`;
+        el.progressText.textContent = `Checks ${checks} / ${count}`;
+        el.progressBar.style.width = `${(checks / count) * 100}%`;
       }
     }
 
@@ -115,7 +141,8 @@ export default {
       if (finished) return;
       if (timer && !timer.running) timer.start();
       entries.push({ n: current, ok });
-      if (mode === 'count' && entries.length >= count) return finish();
+      if (mode === 'count' && checksOf() >= count) { sound.play('finish'); return finish(); }
+      sound.play(ok ? 'hit' : 'miss');
       current = pick();
       paint();
     }
@@ -136,14 +163,14 @@ export default {
     function finish() {
       finished = true; phase = 'result';
       cleanupTimer();
-      const checks = entries.filter(e => e.ok).length;
+      const checks = checksOf();
       const perNumber = {};
       for (const e of entries) {
         const p = perNumber[e.n] || (perNumber[e.n] = [0, 0]);
         p[0]++; if (e.ok) p[1]++;
       }
       const run = {
-        id: uid(), date: Date.now(), mode, setting: mode === 'time' ? minutes : count,
+        id: uid(), date: Date.now(), mode, setting: mode === 'time' ? minutes : count, range: [rMin, rMax],
         attempts: entries.length, checks, fails: entries.length - checks,
         quote: pct(checks, entries.length), perNumber, durationMs: Date.now() - startedAt,
       };
@@ -157,7 +184,7 @@ export default {
       root.replaceChildren(h('div', { class: 'game' },
         h('div', { class: 'scroll' },
           h('div', { class: 'stage', style: { flex: 'none', padding: '8px 0 16px' } },
-            h('div', { class: 'label' }, mode === 'time' ? 'Zeit abgelaufen' : 'Geschafft'),
+            h('div', { class: 'label' }, mode === 'time' ? 'Zeit abgelaufen' : `${run.checks} Checks geschafft`),
             h('div', { class: `big${below ? '' : ' leek'}` }, `${run.quote}%`),
             h('div', { class: 'label' }, 'Checkout-Quote'),
             h('div', { class: 'statline', style: { marginTop: '10px' } },
@@ -190,7 +217,7 @@ export default {
       else if (e.key.toLowerCase() === 'p' && timer) togglePause();
     });
 
-    ctx.autoStart ? start() : setup();
+    (ctx.leek || ctx.autoStart) ? start() : setup();
     return () => cleanupTimer();
   },
   summary(data, settings) {

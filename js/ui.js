@@ -1,4 +1,5 @@
 // Kleine UI-Helfer ohne Framework.
+import { sound } from './sound.js';
 
 export function h(tag, props = {}, ...children) {
   const el = document.createElement(tag);
@@ -27,6 +28,11 @@ export const ICONS = {
   down: svg('<path d="M6 9l6 6 6-6"/>'),
   grip: svg('<circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>'),
   check: svg('<path d="M20 6 9 17l-5-5"/>', 'stroke-width="3.2"'),
+  info: svg('<circle cx="12" cy="12" r="10"/><path d="M12 16v-5M12 8h.01"/>', 'stroke-width="2.4"'),
+  sliders: svg('<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>'),
+  dart: svg('<path d="M3 21l7.5-7.5"/><path d="M14 4l6 6-4.5 1.5L12.5 8.5 14 4z"/><path d="M10.5 13.5l2-5 3 3-5 2z"/><path d="M3 21l2.5-1 .5-2-2 .5z"/>'),
+  heart: svg('<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>'),
+  play: svg('<path d="M6 4l14 8-14 8z"/>'),
   undo: svg('<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>'),
   target: `<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="48" fill="#D7262B"/><circle cx="50" cy="50" r="36" fill="#F3EEDC"/><circle cx="50" cy="50" r="24" fill="#D7262B"/><circle cx="50" cy="50" r="12" fill="#F3EEDC"/></svg>`,
 };
@@ -78,11 +84,12 @@ export function toast(msg) {
   setTimeout(() => t.remove(), 2200);
 }
 
-// Präziser Countdown mit Pause.
+// Präziser Countdown mit Pause. Spielt leisen Ton zu Beginn der letzten Minute und am Ende.
 export class Countdown {
-  constructor(ms, { onTick, onEnd } = {}) {
+  constructor(ms, { onTick, onEnd, sounds = true } = {}) {
     this.total = ms; this.left = ms; this.running = false;
     this.onTick = onTick; this.onEnd = onEnd; this.iv = null;
+    this.sounds = sounds; this.warned = ms <= 60000;
   }
   start() {
     if (this.running || this.left <= 0) return;
@@ -96,7 +103,8 @@ export class Countdown {
   _tick() {
     const now = performance.now();
     this.left -= now - this.last; this.last = now;
-    if (this.left <= 0) { this.left = 0; this.stop(); this.onTick?.(0); this.onEnd?.(); return; }
+    if (!this.warned && this.left <= 60000) { this.warned = true; if (this.sounds) sound.play('lastMinute'); }
+    if (this.left <= 0) { this.left = 0; this.stop(); if (this.sounds) sound.play('end'); this.onTick?.(0); this.onEnd?.(); return; }
     this.onTick?.(this.left);
   }
 }
@@ -137,3 +145,74 @@ export function download(filename, content, type) {
   document.body.append(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
+
+// Liste mit Haken + Reihenfolge (Pfeile & Drag am Griff)
+export function orderEditor(getOrder, setOrder, nameOf) {
+  const list = h('div', { class: 'order-list' });
+  const move = (arr, from, to) => { const a = arr.map(x => ({ ...x })); const [it] = a.splice(from, 1); a.splice(Math.max(0, Math.min(a.length, to)), 0, it); return a; };
+  const save = order => { setOrder(order); paint(); };
+  function paint() {
+    const order = getOrder();
+    list.replaceChildren(...order.map((o, i) => {
+      const handle = h('span', { class: 'handle', html: ICONS.grip, 'aria-hidden': 'true' });
+      const item = h('div', { class: `order-item${o.on ? '' : ' off'}` },
+        handle,
+        h('button', { class: `chk${o.on ? ' on' : ''}`, role: 'checkbox', 'aria-checked': String(o.on), 'aria-label': nameOf(o.id), html: o.on ? ICONS.check : '',
+          onClick: () => save(order.map((x, k) => k === i ? { ...x, on: !x.on } : x)) }),
+        h('span', { class: 'name' }, nameOf(o.id)),
+        h('span', { class: 'arrows' },
+          h('button', { 'aria-label': 'nach oben', disabled: i === 0, html: ICONS.up, onClick: () => save(move(order, i, i - 1)) }),
+          h('button', { 'aria-label': 'nach unten', disabled: i === order.length - 1, html: ICONS.down, onClick: () => save(move(order, i, i + 1)) })));
+      handle.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        handle.setPointerCapture(e.pointerId);
+        const rects = [...list.children].map(el => el.getBoundingClientRect());
+        const startY = e.clientY; let to = i;
+        item.classList.add('dragging');
+        const onMove = ev => {
+          const dy = ev.clientY - startY;
+          item.style.transform = `translateY(${dy}px)`;
+          const mid = rects[i].top + rects[i].height / 2 + dy;
+          to = rects.findIndex(r => mid < r.bottom); if (to === -1) to = rects.length - 1;
+        };
+        const onUp = () => {
+          handle.removeEventListener('pointermove', onMove); handle.removeEventListener('pointerup', onUp); handle.removeEventListener('pointercancel', onUp);
+          item.classList.remove('dragging'); item.style.transform = '';
+          if (to !== i) save(move(getOrder(), i, to));
+        };
+        handle.addEventListener('pointermove', onMove); handle.addEventListener('pointerup', onUp); handle.addEventListener('pointercancel', onUp);
+      });
+      return item;
+    }));
+  }
+  paint();
+  list.repaint = paint;
+  return list;
+}
+
+// Doppel-Schieberegler (min/max)
+export function rangeSlider({ min, max, from, to, onChange }) {
+  const lo = h('input', { type: 'range', min, max, value: from, 'aria-label': 'von' });
+  const hi = h('input', { type: 'range', min, max, value: to, 'aria-label': 'bis' });
+  const fill = h('i', { class: 'rs-fill' });
+  const out = h('div', { class: 'rs-out' });
+  const update = src => {
+    let a = Number(lo.value), b = Number(hi.value);
+    if (a > b) { if (src === lo) { b = a; hi.value = b; } else { a = b; lo.value = a; } }
+    fill.style.left = `${((a - min) / (max - min)) * 100}%`;
+    fill.style.right = `${100 - ((b - min) / (max - min)) * 100}%`;
+    out.textContent = `${a} – ${b}`;
+    onChange(a, b);
+  };
+  lo.addEventListener('input', () => update(lo));
+  hi.addEventListener('input', () => update(hi));
+  const wrap = h('div', { class: 'rs' }, out, h('div', { class: 'rs-track' }, fill, lo, hi),
+    h('div', { class: 'rs-scale' }, [min, 40, 80, 120, max].map(v => h('span', { style: { left: `${((v - min) / (max - min)) * 100}%` } }, v))));
+  wrap.set = (a, b) => { lo.value = a; hi.value = b; update(lo); };
+  queueMicrotask(() => update(lo));
+  return wrap;
+}
+
+// Zufallsauswahl
+export const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+export const shuffle = arr => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };

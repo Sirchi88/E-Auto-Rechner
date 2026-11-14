@@ -8,7 +8,7 @@ const el = (tag, attrs = {}) => { const e = document.createElementNS(NS, tag); f
  */
 export function lineChart(series, { yMax, ySuffix = '', xLabels = [], height = 200, ref = null } = {}) {
   const W = 640, H = height, L = 40, R = 14, T = 12, B = 26;
-  const n = Math.max(...series.map(s => s.points.length), 1);
+  const n = Math.max(xLabels.length, ...series.map(s => s.points.length), 1);
   const maxY = yMax ?? Math.max(1, ...series.flatMap(s => s.points.map(p => p.y)));
   const niceMax = yMax ?? niceCeil(maxY);
   const x = i => L + (n === 1 ? (W - L - R) / 2 : (i / (n - 1)) * (W - L - R));
