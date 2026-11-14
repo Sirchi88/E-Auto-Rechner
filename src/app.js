@@ -720,33 +720,77 @@ function initHeader() {
   });
   const menu = document.getElementById('menu');
   const close = () => menu.removeAttribute('open');
-  document.getElementById('act-export').addEventListener('click', () => {
-    const blob = new Blob([exportJSON(S)], { type: 'application/json' });
-    const a = h('a', { href: URL.createObjectURL(blob), download: `e-auto-rechner-${new Date().toISOString().slice(0, 10)}.json` });
-    document.body.append(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    close(); toast('Daten als JSON exportiert.');
-  });
+  document.getElementById('act-export').addEventListener('click', () => { close(); openDataPanel('export'); });
   const file = document.getElementById('import-file');
-  document.getElementById('act-import').addEventListener('click', () => { file.click(); close(); });
+  document.getElementById('act-import').addEventListener('click', () => { close(); openDataPanel('import'); });
   file.addEventListener('change', async () => {
     const f = file.files[0];
     if (!f) return;
-    try {
-      S = migrate(JSON.parse(await f.text()));
-      S.onboarded = true;
-      save(S); render(); toast('Daten importiert.');
-    } catch (err) { toast('Import fehlgeschlagen: keine gültige Datei.', true); }
+    try { applyImport(await f.text()); document.getElementById('data-panel')?.remove(); }
+    catch { toast('Import fehlgeschlagen: keine gültige Datei.', true); }
     file.value = '';
   });
   document.getElementById('act-wizard').addEventListener('click', () => { S.onboarded = false; step = 0; save(S); render(); close(); window.scrollTo({ top: 0 }); });
-  document.getElementById('act-reset').addEventListener('click', () => {
+  // Zurücksetzen mit Bestätigung direkt im Menü (kein confirm(), funktioniert auch in eingebetteten Ansichten)
+  const resetBtn = document.getElementById('act-reset');
+  let armed = null;
+  resetBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!armed) {
+      resetBtn.textContent = 'Wirklich zurücksetzen? Erneut tippen';
+      armed = setTimeout(() => { armed = null; resetBtn.textContent = 'Alles zurücksetzen'; }, 4000);
+      return;
+    }
+    clearTimeout(armed); armed = null; resetBtn.textContent = 'Alles zurücksetzen';
     close();
-    if (!confirm('Alle Eingaben auf Standardwerte zurücksetzen?')) return;
-    S = defaultState(); step = 0; save(S); render(); toast('Zurückgesetzt.');
+    S = defaultState(); step = 0; save(S); render(); toast('Alle Eingaben zurückgesetzt.');
   });
   document.addEventListener('click', (e) => { if (!menu.contains(e.target)) close(); });
 }
+/** Export/Import-Fenster: JSON anzeigen, kopieren, als Datei speichern oder einfügen. */
+function openDataPanel(mode) {
+  document.getElementById('data-panel')?.remove();
+  const json = exportJSON(S);
+  const ta = h('textarea', { id: 'data-json', class: 'input mono', rows: '12', spellcheck: 'false', 'aria-label': 'Daten als JSON' });
+  ta.value = mode === 'export' ? json : '';
+  if (mode === 'import') ta.placeholder = 'Exportiertes JSON hier einfügen …';
+  const msg = h('p', { class: 'note', role: 'status' });
+  const closePanel = () => panel.remove();
+  const file = document.getElementById('import-file');
+  const actions = mode === 'export' ? [
+    h('button', { type: 'button', class: 'btn primary', onclick: async () => {
+      try { await navigator.clipboard.writeText(json); msg.textContent = 'In die Zwischenablage kopiert.'; }
+      catch { ta.focus(); ta.select(); msg.textContent = 'Text ist markiert – bitte mit Strg+C / Kopieren übernehmen.'; }
+    } }, 'Kopieren'),
+    h('button', { type: 'button', class: 'btn ghost', onclick: () => {
+      const a = h('a', { href: URL.createObjectURL(new Blob([json], { type: 'application/json' })), download: `e-auto-rechner-${new Date().toISOString().slice(0, 10)}.json` });
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      msg.textContent = 'Falls kein Download startet, bitte „Kopieren“ verwenden.';
+    } }, 'Als Datei speichern'),
+  ] : [
+    h('button', { type: 'button', class: 'btn primary', onclick: () => {
+      try { applyImport(ta.value); closePanel(); }
+      catch { msg.textContent = 'Das ist kein gültiger Export des E-Auto-Rechners.'; }
+    } }, 'Importieren'),
+    h('button', { type: 'button', class: 'btn ghost', onclick: () => file.click() }, 'Datei wählen …'),
+  ];
+  const panel = h('div', { id: 'data-panel', class: 'overlay', onclick: (e) => { if (e.target === panel) closePanel(); } },
+    h('div', { class: 'card dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'dp-h' },
+      h('div', { class: 'card-head' }, h('h2', { id: 'dp-h' }, mode === 'export' ? 'Daten exportieren' : 'Daten importieren'),
+        h('button', { type: 'button', class: 'icon-btn', 'aria-label': 'Schließen', onclick: closePanel }, '✕')),
+      h('p', { class: 'note' }, mode === 'export' ? 'Alle Eingaben als JSON. Zum Sichern kopieren oder als Datei speichern.' : 'JSON einfügen oder eine exportierte Datei wählen. Die aktuellen Eingaben werden ersetzt.'),
+      ta, msg, h('div', { class: 'dialog-actions' }, actions)));
+  panel.addEventListener('keydown', (e) => { if (e.key === 'Escape') closePanel(); });
+  document.body.append(panel);
+  (mode === 'export' ? panel.querySelector('.btn.primary') : ta).focus();
+}
+function applyImport(text) {
+  S = migrate(JSON.parse(text));
+  S.onboarded = true;
+  save(S); render(); toast('Daten importiert.');
+}
+
 function toast(msg, isErr) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.toggle('err', !!isErr); t.hidden = false;
