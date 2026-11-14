@@ -226,3 +226,19 @@ export function gameTile({ glyph, title, desc, selected = false, mark = null, on
     h('span', { class: 'g-title' }, title),
     h('span', { class: 'g-desc' }, desc));
 }
+
+// Konfetti-Regen (z. B. bei 180)
+export function confetti(ms = 2000) {
+  const colors = ['#7CC242', '#5FA82A', '#F3EEDC', '#D7262B', '#FFC56E'];
+  const wrap = h('div', { class: 'confetti', 'aria-hidden': 'true' });
+  for (let i = 0; i < 140; i++) {
+    const d = (ms / 1000) * (0.7 + Math.random() * 0.5);
+    wrap.append(h('i', { style: {
+      left: `${Math.random() * 100}%`, background: colors[i % colors.length],
+      animationDuration: `${d}s`, animationDelay: `${Math.random() * 0.35}s`,
+      transform: `rotate(${Math.random() * 360}deg)`, width: `${6 + Math.random() * 6}px`, height: `${8 + Math.random() * 8}px`,
+    } }));
+  }
+  document.body.append(wrap);
+  setTimeout(() => wrap.remove(), ms + 600);
+}

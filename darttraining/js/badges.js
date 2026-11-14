@@ -32,6 +32,7 @@ export const BADGES = [
   { id: 'boss', emoji: '💀', name: 'Bossbezwinger', desc: 'Einen Boss in Leek Survival besiegt', test: () => sv(r => (r.bossWins || 0) > 0) },
   { id: 'drill', emoji: '🔧', name: 'Schwachstellen-Jäger', desc: '„Dran bleiben Junge“ durchgezogen', test: () => store.list('drillRuns').length > 0 },
   { id: 'vs', emoji: '⚔️', name: 'Gemüse-Gladiator', desc: 'Erstes 1vs1-Duell gespielt', test: () => store.list('versusMatches').length > 0 },
+  { id: 'max180', emoji: '🎉', name: 'Maximum-Lauch', desc: 'Eine 180 im 501 geworfen', test: () => Object.values(store.exportAll().scoreFreq || {}).some(m => (m[180] || 0) > 0) },
   { id: 'vs10', emoji: '🏟️', name: 'Arena-Lauch', desc: '10 Duelle gespielt', test: () => store.list('versusMatches').length >= 10 },
   { id: 'ready5', emoji: '🎯', name: 'Matchbereit', desc: '5× „Bereit fürs Match!“', test: () => store.sessions.filter(s => s.ready === true).length >= 5 },
   { id: 'plan', emoji: '📋', name: 'Planlauch', desc: 'Eigenen Trainingsplan gespeichert', test: () => store.settings.plans.length > 0 },

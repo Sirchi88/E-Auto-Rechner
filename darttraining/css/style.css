@@ -58,7 +58,6 @@ button { cursor: pointer; touch-action: manipulation; user-select: none; -webkit
 .splash .logo-stack img { position: absolute; inset: 0; width: 100%; height: 100%; }
 .splash .logo-stack .wink-img { opacity: 0; }
 .splash.wink .logo-stack .wink-img { opacity: 1; }
-.splash.wink .logo-stack { animation: winkbob .55s ease; }
 .splash-title { font-family: var(--brand); font-size: clamp(1.8rem, 7vw, 2.6rem); letter-spacing: .04em; margin: 0; animation: rise .8s .15s ease both; color: var(--cream); }
 .splash.hide { opacity: 0; visibility: hidden; }
 .splash.fly { background: transparent; transition: background .75s ease; }
@@ -98,16 +97,18 @@ button { cursor: pointer; touch-action: manipulation; user-select: none; -webkit
 .mode-cards { display: grid; gap: 12px; margin-top: 4px; }
 .mode-card {
   text-align: left; border: 0; border-radius: 22px; padding: 18px 20px;
-  background: linear-gradient(140deg, #6DB534, var(--leek) 55%, #3F7A1D); color: #101510;
+  background: linear-gradient(150deg, #2A302A, #1F241F); color: var(--cream);
+  border: 2px solid var(--leek);
   position: relative; overflow: hidden; height: 118px;
   display: flex; flex-direction: column; justify-content: flex-start;
   box-shadow: 0 6px 18px rgba(0,0,0,.25);
 }
-.mode-card .title { font-family: var(--head); font-weight: 700; font-size: 1.7rem; line-height: 1; position: relative; z-index: 1; max-width: 78%; }
-.mode-card .desc { font-size: .88rem; opacity: .85; margin-top: 6px; max-width: 70%; position: relative; z-index: 1; }
+.mode-card .title { font-family: var(--head); font-weight: 700; font-size: 1.7rem; line-height: 1; position: relative; z-index: 1; max-width: 78%; color: var(--leek-light); }
+.mode-card .desc { font-size: .88rem; color: var(--cream-dim); margin-top: 6px; max-width: 70%; position: relative; z-index: 1; }
 .mode-card:active { transform: scale(.985); }
-.tile-art { position: absolute; right: -10px; top: -12px; width: 110px; height: 110px; object-fit: contain; opacity: .22; transform: rotate(10deg); pointer-events: none; }
-.tile-art.svg { right: 8px; top: 8px; width: 84px; height: 84px; color: #0F140F; transform: rotate(-8deg); }
+.tile-art { position: absolute; right: -10px; top: -12px; width: 110px; height: 110px; object-fit: contain; opacity: .35; transform: rotate(10deg); pointer-events: none; }
+.tile-art.svg { right: 10px; top: 10px; width: 80px; height: 80px; color: var(--leek-light); transform: rotate(-8deg); opacity: .35; }
+.tile-art.thrower { width: 130px; right: -6px; top: 4px; transform: rotate(0); }
 .tile-art.svg svg { width: 100%; height: 100%; }
 .tile-art.duel { width: 128px; right: 6px; top: 10px; height: auto; transform: rotate(0); }
 .streak-chip { align-self: flex-start; border: 1px solid rgba(255,179,71,.4); background: rgba(255,179,71,.12); color: #FFC56E; border-radius: 99px; padding: 6px 14px; font-weight: 600; font-size: .88rem; margin: -6px 0 12px; }
@@ -416,14 +417,14 @@ button { cursor: pointer; touch-action: manipulation; user-select: none; -webkit
 
 /* ===== Spiel-Kacheln ===== */
 .tile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.gtile { position: relative; overflow: hidden; text-align: left; border: 2px solid transparent; border-radius: 18px; padding: 14px 14px 12px;
+.gtile { position: relative; overflow: hidden; text-align: left; border: 2px solid rgba(95,168,42,.75); border-radius: 18px; padding: 14px 14px 12px;
   min-height: 128px; display: flex; flex-direction: column; justify-content: flex-start; gap: 6px;
-  background: linear-gradient(150deg, rgba(109,181,52,.32), rgba(63,122,29,.16) 60%, var(--bg-2)); color: var(--cream); }
+  background: linear-gradient(150deg, #2A302A, #1F241F); color: var(--cream); }
 .gtile:active { transform: scale(.98); }
-.gtile.sel { border-color: var(--leek-light); background: linear-gradient(150deg, rgba(124,194,66,.55), rgba(63,122,29,.3) 70%, var(--bg-2)); }
-.g-glyph { position: absolute; right: 8px; top: 2px; font-family: var(--head); font-weight: 700; font-size: 2.6rem; line-height: 1; opacity: .22; pointer-events: none; }
+.gtile.sel { border-color: var(--leek-light); background: linear-gradient(150deg, #34402F, #232A21); box-shadow: 0 0 0 2px rgba(124,194,66,.35); }
+.g-glyph { position: absolute; right: 8px; top: 2px; font-family: var(--head); font-weight: 700; font-size: 2.6rem; line-height: 1; opacity: .35; color: var(--leek-light); pointer-events: none; }
 .g-mark { position: absolute; right: 10px; bottom: 10px; width: 28px; height: 28px; border-radius: 50%; background: var(--leek-light); color: var(--bg); display: grid; place-items: center; font-weight: 700; }
-.g-title { font-family: var(--head); font-weight: 700; font-size: 1.25rem; line-height: 1.05; max-width: 82%; }
+.g-title { font-family: var(--head); font-weight: 700; font-size: 1.25rem; line-height: 1.05; max-width: 82%; color: var(--leek-light); }
 .g-desc { font-size: .8rem; color: var(--cream-dim); line-height: 1.3; }
 .h-glyph { font-size: 1rem; margin-right: 8px; opacity: .7; }
 .order-only .chk { display: none; }
@@ -433,8 +434,8 @@ button { cursor: pointer; touch-action: manipulation; user-select: none; -webkit
 .timeline::before { content: ""; position: absolute; left: 17px; top: 18px; bottom: 18px; width: 2px; background: rgba(124,194,66,.35); }
 .tl-item { display: flex; gap: 12px; align-items: center; }
 .tl-num { width: 36px; height: 36px; border-radius: 50%; background: var(--leek); color: var(--bg); display: grid; place-items: center; font-family: var(--head); font-weight: 700; font-size: 1.2rem; flex-shrink: 0; z-index: 1; }
-.tl-card { position: relative; overflow: hidden; flex: 1; padding: 12px 14px; border-radius: 16px; background: linear-gradient(150deg, rgba(109,181,52,.25), var(--bg-2) 70%); display: flex; flex-direction: column; }
-.tl-card b { font-family: var(--head); font-size: 1.2rem; }
+.tl-card { position: relative; overflow: hidden; flex: 1; padding: 12px 14px; border-radius: 16px; border: 2px solid rgba(95,168,42,.75); background: linear-gradient(150deg, #2A302A, #1F241F); display: flex; flex-direction: column; }
+.tl-card b { font-family: var(--head); font-size: 1.2rem; color: var(--leek-light); }
 .tl-card span:last-child { font-size: .8rem; color: var(--cream-dim); }
 .tl-card .g-glyph { font-size: 2rem; }
 
@@ -532,3 +533,30 @@ button { cursor: pointer; touch-action: manipulation; user-select: none; -webkit
 @media (min-width: 700px) and (orientation: portrait) {
   .tile-grid { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* ===== Konfetti ===== */
+.confetti { position: fixed; inset: 0; pointer-events: none; z-index: 95; overflow: hidden; }
+.confetti i { position: absolute; top: -20px; border-radius: 2px; animation-name: confettiFall; animation-timing-function: cubic-bezier(.3,.6,.6,1); animation-fill-mode: forwards; }
+@keyframes confettiFall { to { transform: translateY(110vh) rotate(720deg); opacity: .8; } }
+
+/* ===== 501 ===== */
+.x01-scores { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+.x01-card { border-radius: 16px; padding: 8px 10px; background: var(--bg-2); border: 2px solid var(--line); text-align: center; opacity: .65; }
+.x01-card.active { opacity: 1; border-color: var(--leek-light); background: linear-gradient(150deg, #2E382B, #1F241F); }
+.x01-card .rem { font-family: var(--head); font-weight: 700; font-size: clamp(2.8rem, 15vw, 4.4rem); line-height: 1; font-variant-numeric: tabular-nums; }
+.x01-card.active .rem { color: var(--cream); }
+.x01-card .meta { font-size: .72rem; color: var(--cream-dim); }
+.x01-card .co { font-family: var(--head); font-weight: 700; color: var(--leek-light); font-size: 1rem; min-height: 1.2em; }
+.x01-input { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; background: var(--bg); border: 2px solid var(--line); border-radius: 14px; padding: 4px 14px; }
+.x01-input .val { font-family: var(--head); font-weight: 700; font-size: 2.4rem; line-height: 1.1; min-width: 3ch; }
+.x01-input .val.empty { color: var(--cream-dim); }
+.x01-input .lbl { font-size: .75rem; color: var(--cream-dim); text-transform: uppercase; letter-spacing: .1em; font-weight: 600; }
+.shortcuts { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.shortcuts button { min-height: 44px; border-radius: 12px; border: 1px solid rgba(124,194,66,.5); background: rgba(95,168,42,.14); color: var(--leek-light); font-family: var(--head); font-weight: 700; font-size: 1.25rem; padding: 0; }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.keypad button { min-height: 52px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-family: var(--head); font-weight: 700; font-size: 1.6rem; padding: 0; }
+.keypad button.ok { background: var(--leek); color: var(--bg); font-family: var(--btn); font-size: 1rem; }
+.keypad button.del { font-size: 1.2rem; }
+.x01-legs { font-family: var(--head); font-weight: 700; font-size: 1rem; color: var(--cream-dim); }
+.x01-stage { gap: 6px !important; justify-content: flex-start !important; padding-top: 4px !important; }
+.x01-controls { gap: 8px !important; }

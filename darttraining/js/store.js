@@ -8,7 +8,7 @@ const LOGS = ['checkoutRuns', 'atcRuns', 'l121Runs', 'doublesRuns', 'drillRuns',
 function load() {
   let raw = {};
   try { raw = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch { raw = {}; }
-  const d = { settings: raw.settings || null, sessions: Array.isArray(raw.sessions) ? raw.sessions : [], fieldStats: raw.fieldStats || {}, badges: raw.badges || {} };
+  const d = { settings: raw.settings || null, sessions: Array.isArray(raw.sessions) ? raw.sessions : [], fieldStats: raw.fieldStats || {}, badges: raw.badges || {}, scoreFreq: raw.scoreFreq || {} };
   for (const k of LOGS) d[k] = Array.isArray(raw[k]) ? raw[k] : [];
   return d;
 }
@@ -38,6 +38,17 @@ export const store = {
   get badges() { return data.badges; },
   unlockBadge(id) { if (data.badges[id]) return false; data.badges[id] = Date.now(); persist(); return true; },
   list(kind) { return data[kind] || []; },
+  // Häufigste Aufnahmen pro Spieler (für 501-Schnelltasten)
+  bumpScore(name, v) {
+    const m = data.scoreFreq[name] || (data.scoreFreq[name] = {});
+    m[v] = (m[v] || 0) + 1; persist();
+  },
+  topScores(name, n = 6, fallback = [26, 41, 45, 60, 81, 100]) {
+    const m = data.scoreFreq[name] || {};
+    const top = Object.entries(m).sort((a, b) => b[1] - a[1] || b[0] - a[0]).map(([v]) => Number(v)).filter(v => v > 0).slice(0, n);
+    for (const f of fallback) { if (top.length >= n) break; if (!top.includes(f)) top.push(f); }
+    return top.slice(0, n).sort((a, b) => a - b);
+  },
   log(kind, entry) {
     (data[kind] ||= []).push(entry);
     persist();
