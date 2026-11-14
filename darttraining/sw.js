@@ -1,12 +1,15 @@
 // Service Worker: alles vorab cachen → App läuft offline.
-const CACHE = 'leek-darttraining-v1';
+const CACHE = 'leek-darttraining-v2';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'js/app.js', 'js/ui.js', 'js/store.js', 'js/settings.js', 'js/checkouts.js', 'js/chart.js', 'js/wakelock.js',
-  'js/games/registry.js', 'js/games/timed.js', 'js/games/warmup.js', 'js/games/sequence.js', 'js/games/atc.js', 'js/games/switch.js', 'js/games/checkouts.js',
-  'js/screens/summary.js', 'js/screens/history.js', 'js/screens/admin.js',
-  'fonts/bebas-neue.woff2', 'fonts/inter-400.woff2', 'fonts/inter-600.woff2', 'fonts/inter-800.woff2',
-  'icons/logo.webp', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png',
+  'js/sound.js', 'js/board.js', 'js/info.js', 'js/weakness.js',
+  'js/games/registry.js', 'js/games/timed.js', 'js/games/warmup.js', 'js/games/sequence.js', 'js/games/atc.js', 'js/games/switch.js',
+  'js/games/checkouts.js', 'js/games/doubles.js', 'js/games/l121.js', 'js/games/drill.js', 'js/games/survival.js',
+  'js/screens/summary.js', 'js/screens/history.js', 'js/screens/admin.js', 'js/screens/versus.js',
+  'fonts/bebas-neue.woff2', 'fonts/rajdhani-600.woff2', 'fonts/rajdhani-700.woff2', 'fonts/sora-600.woff2', 'fonts/inter-400.woff2', 'fonts/inter-600.woff2',
+  'icons/logo.webp', 'icons/logo-wink.webp', 'icons/mascot.webp', 'icons/duel.webp',
+  'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png',
 ];
 
 self.addEventListener('install', e => {

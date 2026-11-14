@@ -1,8 +1,9 @@
 // Admin-Bereich: rendert die Einstellungen aus dem Schema + TheLeek-Reihenfolge + Daten.
-import { h, iconBtn, ICONS, segmented, stepper, toggleSwitch, confirmDialog, toast, download, fmtDate } from '../ui.js';
+import { h, iconBtn, segmented, stepper, toggleSwitch, confirmDialog, toast, download, fmtDate, orderEditor } from '../ui.js';
+import { sound } from '../sound.js';
 import { store } from '../store.js';
 import { SETTINGS_SCHEMA, defaultSettings } from '../settings.js';
-import { gameById } from '../games/registry.js';
+import { gameById, GAME_IDS } from '../games/registry.js';
 
 export function renderAdmin({ onBack }) {
   const body = h('div', { class: 'scroll' });
@@ -26,7 +27,7 @@ export function renderAdmin({ onBack }) {
       h('div', { class: 'card' }, h('h3', {}, 'Zurücksetzen'),
         h('button', { class: 'btn ghost small', style: { width: '100%' }, onClick: async () => {
           if (await confirmDialog({ title: 'Einstellungen zurücksetzen?', text: 'Alle Einstellungen werden auf die Standardwerte gesetzt. Die Statistik bleibt erhalten.', ok: 'Zurücksetzen', danger: true })) {
-            store.saveSettings(defaultSettings()); render(); toast('Standardwerte wiederhergestellt');
+            store.saveSettings(defaultSettings(GAME_IDS)); sound.setEnabled(store.settings.sound); render(); toast('Standardwerte wiederhergestellt');
           }
         } }, 'Einstellungen auf Standard')),
       h('p', { class: 'muted small-text', style: { textAlign: 'center' } }, 'Alle Daten bleiben lokal auf diesem Gerät.'));
@@ -36,6 +37,7 @@ export function renderAdmin({ onBack }) {
     let control;
     const onChange = v => {
       update({ [f.key]: v });
+      if (f.key === 'sound') { sound.setEnabled(v); if (v) sound.play('hit'); }
       // z. B. Range-Grenzen getauscht → neu zeichnen
       if (store.settings[f.key] !== v) render();
     };
@@ -45,70 +47,19 @@ export function renderAdmin({ onBack }) {
     return h('div', { class: 'field' }, h('div', { class: 'f-label' }, f.label, f.hint ? h('small', {}, f.hint) : null), control);
   }
 
-  // ---- TheLeek Mode: Auswahl & Reihenfolge (Pfeile + Drag & Drop) ----
+  // ---- Leek'sches Programm: Auswahl & Reihenfolge ----
   function leekOrderCard() {
-    const list = h('div', { class: 'order-list' });
-    const save = order => { update({ leekOrder: order }); paint(); };
-
-    function paint() {
-      const order = store.settings.leekOrder;
-      list.replaceChildren(...order.map((o, i) => {
-        const g = gameById(o.id);
-        const handle = h('span', { class: 'handle', html: ICONS.grip, 'aria-hidden': 'true' });
-        const item = h('div', { class: `order-item${o.on ? '' : ' off'}`, 'data-i': i },
-          handle,
-          h('button', { class: `chk${o.on ? ' on' : ''}`, role: 'checkbox', 'aria-checked': String(o.on), 'aria-label': `${g.name} im TheLeek Mode`, html: o.on ? ICONS.check : '',
-            onClick: () => save(order.map((x, k) => k === i ? { ...x, on: !x.on } : x)) }),
-          h('span', { class: 'name' }, g.name),
-          h('span', { class: 'arrows' },
-            h('button', { 'aria-label': 'nach oben', disabled: i === 0, html: ICONS.up, onClick: () => save(move(order, i, i - 1)) }),
-            h('button', { 'aria-label': 'nach unten', disabled: i === order.length - 1, html: ICONS.down, onClick: () => save(move(order, i, i + 1)) })));
-        enableDrag(handle, item, i);
-        return item;
-      }));
-    }
-
-    function enableDrag(handle, item, from) {
-      handle.addEventListener('pointerdown', e => {
-        e.preventDefault();
-        handle.setPointerCapture(e.pointerId);
-        const items = [...list.children];
-        const rects = items.map(el => el.getBoundingClientRect());
-        const startY = e.clientY;
-        let to = from;
-        item.classList.add('dragging');
-        const onMove = ev => {
-          const dy = ev.clientY - startY;
-          item.style.transform = `translateY(${dy}px)`;
-          const mid = rects[from].top + rects[from].height / 2 + dy;
-          to = rects.findIndex(r => mid < r.bottom);
-          if (to === -1) to = rects.length - 1;
-        };
-        const onUp = () => {
-          handle.removeEventListener('pointermove', onMove);
-          handle.removeEventListener('pointerup', onUp);
-          handle.removeEventListener('pointercancel', onUp);
-          item.classList.remove('dragging');
-          item.style.transform = '';
-          if (to !== from) save(move(store.settings.leekOrder, from, to));
-        };
-        handle.addEventListener('pointermove', onMove);
-        handle.addEventListener('pointerup', onUp);
-        handle.addEventListener('pointercancel', onUp);
-      });
-    }
-
-    paint();
+    const list = orderEditor(() => store.settings.leekOrder, order => update({ leekOrder: order }), id => gameById(id).name);
     return h('div', { class: 'card' },
-      h('h3', {}, 'TheLeek Mode'),
-      h('p', { class: 'muted small-text' }, 'Haken = Spiel ist enthalten. Reihenfolge per Pfeil oder am Griff ziehen.'),
+      h('h3', {}, 'Das Leek’sche Trainingsprogramm'),
+      h('p', { class: 'muted small-text' }, 'Haken = Spiel ist enthalten. Reihenfolge per Pfeil oder am Griff ziehen. Im Programm starten die Spiele direkt mit den Standardwerten.'),
       list,
-      h('button', { class: 'btn ghost small', style: { width: '100%', marginTop: '10px' }, onClick: () => save(defaultSettings().leekOrder) }, 'Standard-Reihenfolge'));
+      h('button', { class: 'btn ghost small', style: { width: '100%', marginTop: '10px' }, onClick: () => { update({ leekOrder: defaultSettings(GAME_IDS).leekOrder }); list.repaint(); } }, 'Standard-Reihenfolge'));
   }
 
   // ---- Statistik: Export & Reset ----
   function dataCard() {
-    const n = store.sessions.length, r = store.checkoutRuns.length;
+    const n = store.sessions.length, r = store.checkoutRuns.filter(x => x.source !== 'drill').length;
     return h('div', { class: 'card' },
       h('h3', {}, 'Statistik'),
       h('p', { class: 'muted small-text' }, `${n} Session${n === 1 ? '' : 's'} · ${r} Checkout-Runde${r === 1 ? '' : 'n'} gespeichert`),
@@ -128,12 +79,6 @@ export function renderAdmin({ onBack }) {
     body);
 }
 
-function move(arr, from, to) {
-  const a = arr.map(x => ({ ...x }));
-  const [it] = a.splice(from, 1);
-  a.splice(Math.max(0, Math.min(a.length, to)), 0, it);
-  return a;
-}
 
 const stamp = () => new Date().toISOString().slice(0, 10);
 
@@ -150,7 +95,7 @@ const csv = rows => '﻿' + rows.map(r => r.map(csvCell).join(';')).join('\r\n')
 function exportCsv() {
   const rows = [['Typ', 'Datum', 'Session', 'Spiel', 'Dauer (s)', 'Fehlwürfe', 'Grenze', 'Versuche', 'Checks', 'Fails', 'Quote %', 'Zahl']];
   for (const s of store.sessions) {
-    rows.push(['Session', fmtDate(s.start), s.id, s.mode === 'leek' ? 'TheLeek Mode' : 'Angepasst', Math.round(((s.end || s.start) - s.start) / 1000)]);
+    rows.push(['Session', fmtDate(s.start), s.id, ({ leek: 'Leek-Programm', custom: 'Individuell', single: 'Einzel' })[s.mode] || 'Angepasst', Math.round(((s.end || s.start) - s.start) / 1000)]);
     for (const r of s.results) {
       const d = r.data || {};
       rows.push(['Spiel', fmtDate(r.at || s.start), s.id, gameById(r.gameId)?.name ?? r.gameId, Math.round(r.durationMs / 1000),
@@ -163,5 +108,9 @@ function exportCsv() {
       rows.push(['Checkout-Zahl', fmtDate(run.date), run.id, 'Random Checkouts', '', '', '', a, c, a - c, Math.round((c / a) * 100), n]);
     }
   }
+  for (const r of store.list('survivalRuns')) rows.push(['Leek Survival', fmtDate(r.date), r.id, r.difficulty, Math.round(r.durationMs / 1000), r.livesLost, `Runde ${r.highestRound}`, r.ok + r.fail, r.ok, r.fail, r.quote]);
+  for (const r of store.list('l121Runs')) rows.push(['121', fmtDate(r.date), r.id, r.variant, Math.round(r.durationMs / 1000), '', `Höchste ${r.highest}`, r.attempts, r.checks, r.attempts - r.checks, '']);
+  for (const r of store.list('doublesRuns')) rows.push(['Doppel', fmtDate(r.date), r.id, r.seq.join(' '), Math.round(r.durationMs / 1000), '', `${r.perMin}/Min`, '', r.hits, '', '']);
+  for (const r of store.list('versusMatches')) rows.push(['1vs1', fmtDate(r.date), r.id, r.duel, '', '', r.players.join(' vs '), '', '', '', '', r.winner ?? 'Unentschieden']);
   download(`leek-darttraining-${stamp()}.csv`, csv(rows), 'text/csv;charset=utf-8');
 }

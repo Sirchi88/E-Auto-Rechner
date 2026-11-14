@@ -3,6 +3,8 @@ import { h, iconBtn, fmtDate, fmtDuration, pct } from '../ui.js';
 import { store } from '../store.js';
 import { gameById } from '../games/registry.js';
 import { lineChart } from '../chart.js';
+import { DIFFICULTIES } from '../games/survival.js';
+import { VARIANTS_121 } from '../games/l121.js';
 
 const shortDate = ts => new Date(ts).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
 
@@ -20,7 +22,8 @@ export function weakNumbers(runs, minAttempts = 3, limit = 10) {
 
 export function renderHistory({ onBack }) {
   const sessions = [...store.sessions].sort((a, b) => a.start - b.start);
-  const runs = [...store.checkoutRuns].sort((a, b) => a.date - b.date);
+  const allRuns = [...store.checkoutRuns].sort((a, b) => a.date - b.date);
+  const runs = allRuns.filter(r => r.source !== 'drill');
   const settings = store.settings;
 
   // ---- Checkout-Quote ----
@@ -40,21 +43,41 @@ export function renderHistory({ onBack }) {
   } else coCard.append(h('p', { class: 'empty' }, 'Noch keine Checkout-Runden.'));
 
   // ---- Around the Clock ----
-  const atcSessions = sessions.filter(s => s.results.some(r => r.gameId === 'atcSingle' || r.gameId === 'atcDouble'));
-  const lastOf = (s, id) => [...s.results].reverse().find(r => r.gameId === id);
-  const series = [['atcSingle', 'Single', '#F3EEDC'], ['atcDouble', 'Doppel', '#D7262B']].map(([id, label, color]) => ({
-    label, color,
-    points: atcSessions.map((s, i) => ({ s, i, r: lastOf(s, id) })).filter(p => p.r)
-      .map(p => ({ i: p.i, y: p.r.data.misses, tip: `${fmtDate(p.s.start)}: ${label} ${p.r.data.misses} Fehlwürfe` })),
-  }));
+  const atcRuns = [...store.list('atcRuns')].sort((a, b) => a.date - b.date);
+  const series = [['atcSingle', 'Single', '#F3EEDC', 'atcSingleLimit'], ['atcDouble', 'Doppel', '#D7262B', 'atcDoubleLimit'], ['atcTriple', 'Triple', '#7CC242', 'atcTripleLimit']].map(([id, label, color, lim]) => ({
+    label, color, lim,
+    points: atcRuns.map((r, i) => ({ r, i })).filter(p => p.r.game === id)
+      .map(p => ({ i: p.i, y: p.r.misses, tip: `${fmtDate(p.r.date)}: ${label} ${p.r.misses} Fehlwürfe` })),
+  })).filter(x => x.points.length);
   const atcCard = h('div', { class: 'card' }, h('h3', {}, 'Around the Clock – Fehlwürfe'));
-  if (atcSessions.length) {
-    atcCard.append(lineChart(series, { xLabels: atcSessions.map(s => shortDate(s.start)) }),
-      h('div', { class: 'legend' }, series.map(s => h('span', {}, h('i', { style: { background: s.color } }), `${s.label} (Grenze ${s.label === 'Single' ? settings.atcSingleLimit : settings.atcDoubleLimit})`))));
+  if (atcRuns.length) {
+    atcCard.append(lineChart(series, { xLabels: atcRuns.map(r => shortDate(r.date)) }),
+      h('div', { class: 'legend' }, series.map(x => h('span', {}, h('i', { style: { background: x.color } }), `${x.label} (Grenze ${settings[x.lim]})`))));
   } else atcCard.append(h('p', { class: 'empty' }, 'Noch keine Around-the-Clock-Runden.'));
 
+  // ---- Leek Survival ----
+  const sv = store.list('survivalRuns');
+  const svCard = h('div', { class: 'card' }, h('h3', {}, 'Leek Survival – Rekorde'));
+  if (sv.length) {
+    svCard.append(h('div', { class: 'stat-grid' }, Object.entries(DIFFICULTIES).map(([k, d]) => {
+      const rs = sv.filter(r => r.difficulty === k);
+      const best = rs.length ? Math.max(...rs.map(r => r.highestRound)) : null;
+      return h('div', { class: 'sg' }, h('b', {}, best ?? '–'), h('span', {}, `${d.emoji} ${d.label}${rs.length ? ` · ${rs.length}×` : ''}`));
+    })));
+    const last = sv.slice(-12);
+    svCard.append(lineChart([{ label: 'Runde', color: '#7CC242', points: last.map(r => ({ y: r.highestRound, tip: `${fmtDate(r.date)}: ${DIFFICULTIES[r.difficulty]?.label} Runde ${r.highestRound}` })) }], { xLabels: last.map(r => shortDate(r.date)), height: 160 }));
+  } else svCard.append(h('p', { class: 'empty' }, 'Noch keine Survival-Runden.'));
+
+  // ---- 121, Doppel, 1vs1 ----
+  const l121 = store.list('l121Runs'), dbl = store.list('doublesRuns'), vs = store.list('versusMatches');
+  const misc = h('div', { class: 'card' }, h('h3', {}, 'Weitere Rekorde'),
+    h('div', { class: 'stat-grid' },
+      Object.entries(VARIANTS_121).map(([k, v]) => h('div', { class: 'sg' }, h('b', {}, Math.max(0, ...l121.filter(r => r.variant === k).map(r => r.highest)) || '–'), h('span', {}, `121 ${v.label}`))),
+      h('div', { class: 'sg' }, h('b', {}, dbl.length ? Math.max(...dbl.map(r => r.perMin)) : '–'), h('span', {}, 'Doppel-Treffer/Min')),
+      h('div', { class: 'sg' }, h('b', {}, vs.length), h('span', {}, '1vs1-Duelle'))));
+
   // ---- Schwache Zahlen ----
-  const weak = weakNumbers(runs);
+  const weak = weakNumbers(allRuns);
   const weakCard = h('div', { class: 'card' }, h('h3', {}, 'Schwache Zahlen'),
     h('p', { class: 'muted small-text' }, 'Niedrigste Checkout-Quote (mind. 3 Versuche)'),
     weak.length
@@ -70,7 +93,7 @@ export function renderHistory({ onBack }) {
         h('summary', {},
           h('span', { class: 'name' }, fmtDate(s.start)),
           h('span', { class: 'muted small-text' }, fmtDuration((s.end || s.start) - s.start))),
-        h('div', { class: 'games' }, `${s.mode === 'leek' ? 'TheLeek Mode' : 'Angepasst'} · ${names.length} Spiel${names.length === 1 ? '' : 'e'}`),
+        h('div', { class: 'games' }, `${({ leek: 'Leek-Programm', custom: 'Individuell', single: 'Einzel' })[s.mode] || 'Angepasst'} · ${names.length} Spiel${names.length === 1 ? '' : 'e'}`),
         h('div', { style: { marginTop: '8px' } }, s.results.map(r => {
           const g = gameById(r.gameId);
           const sum = g ? g.summary(r.data, settings) : { value: '–' };
@@ -82,5 +105,5 @@ export function renderHistory({ onBack }) {
 
   return h('section', { class: 'screen' },
     h('div', { class: 'topbar' }, iconBtn('back', 'Zurück', onBack), h('h2', {}, 'Statistik')),
-    h('div', { class: 'scroll' }, coCard, atcCard, weakCard, sessCard));
+    h('div', { class: 'scroll' }, coCard, weakCard, atcCard, svCard, misc, sessCard));
 }
